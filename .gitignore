@@ -1,2 +1,6 @@
-/data/
-state_energy
+data/
+venv/
+.idea/
+__pycache__/
+.gitignore
+*.pbs
