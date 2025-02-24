@@ -270,6 +270,7 @@ class VariationalSpace:
                             hole_list.append((x, y, z, orb, s))
 
         # 生成所有可能组合的态, 并分类型, 根据能量范围得到所需要的态
+        max_energy = pam.max_energy
         max_energy = 100
         state_energy = []
         type_num = {}

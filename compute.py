@@ -21,9 +21,23 @@ def compute_Aw_main(A, Uoo, Upp, ed, ep, eo, tpd, tpp, tdo, tpo):
     :param tpo:
     :return:
     """
-    tpd_nn_hop_dir, tpd_nn_hop_fac, tpp_nn_hop_fac = ham.set_tpd_tpp(tpd, tpp)
+    # 生成Tpd和Tpp矩阵
+    tpd_nn_hop_dir, tpd_nn_hop_fac, tpp_nn_hop_dir, tpp_nn_hop_fac = ham.set_tpd_tpp(tpd, tpp)
     Tpd = ham.create_tpd_nn_matrix(VS, tpd_nn_hop_dir, tpd_nn_hop_fac)
-    gs.get_ground_state(Tpd, VS)
+    Tpp = ham.create_tpp_nn_matrix(VS, tpp_nn_hop_dir, tpp_nn_hop_fac)
+    # 生成Tdo和Tpo矩阵
+    tdo_nn_hop_dir, tdo_nn_hop_fac, tpo_nn_hop_dir, tpo_nn_hop_fac = ham.set_tdo_tpo(tdo, tpo)
+    Tdo = ham.create_tdo_nn_matrix(VS, tdo_nn_hop_dir, tdo_nn_hop_fac)
+    Tpo = ham.create_tpo_nn_matrix(VS, tpo_nn_hop_dir, tpo_nn_hop_fac)
+    # 生成Tz矩阵, 层间杂化
+    tz_fac = ham.set_tz(if_tz_exist, tz_a1a1, tz_b1b1)
+    Tz = ham.create_tz_matrix(VS, tz_fac)
+    # 生成Esite矩阵
+    Esite = ham.create_Esite_matrix(VS, A, ed, ep, eo)
+    # 跳跃部分
+    H0 = Tpd + Tpp + Tdo + Tpo + Tz + Esite
+
+    gs.get_ground_state(H0, VS)
 
 
 if __name__ == '__main__':
@@ -36,7 +50,6 @@ if __name__ == '__main__':
         with open(file_path, 'w') as file:
             file.truncate(0)
 
-    VS = vs.VariationalSpace()
     A = pam.A
     Uoo = pam.Uoos[0]
     Upp = pam.Upps[0]
@@ -49,6 +62,12 @@ if __name__ == '__main__':
     tpp = pam.tpp_list[4]
     tdo = pam.tdo_list[4]
     tpo = pam.tpd_list[4]
+    tz_a1a1 = pam.tz_a1a1
+    tz_b1b1 = pam.tz_b1b1
+    if_tz_exist = pam.if_tz_exist
+
+    VS = vs.VariationalSpace()
+    d_state_idx, d_hole_idx, p_idx_pair, apz_idx_pair = ham.get_double_occ_list(VS)
 
     compute_Aw_main(A, Uoo, Upp, ed, ep, eo, tpd, tpp, tdo, tpo)
     t1 = time.time()

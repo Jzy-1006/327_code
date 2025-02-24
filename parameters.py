@@ -3,6 +3,7 @@ import numpy as np
 # hole_num: 空穴数目, layer_num: 层数, Norb: 轨道数目
 hole_num = 4
 layer_num = 2
+max_energy = 100.
 Norb = 5
 Mc = 2
 pressure_list = (0, 4, 8, 16, 29.5)
@@ -27,6 +28,8 @@ tdo_list = (1.48, 1.53, 1.55, 1.61, 1.66)
 tpo_list = (0.445, 0.458, 0.468, 0.484, 0.487)
 tz_a1a1 = 0.028
 tz_b1b1 = 0.047
+
+if_tz_exist = 2
 reduce_s = 0
 Neval = 30
 
