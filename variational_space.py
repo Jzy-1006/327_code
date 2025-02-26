@@ -29,10 +29,10 @@ def get_hole_uid(hole):
     i_orb = lat.orb_int[orb]
     i_s = lat.spin_int[s]
 
-    # 按将这些数, 按进制规则转为一个大数, 从低位到高位分别是s, orb, z, y, x
+    # 按将这些数, 按进制规则转为一个大数, 从低位到高位分别是s, orb, y, x, z
     hole_uid = 0
-    b_list = [b_s, b_orb, b_z, b_y, b_x]
-    i_list = [i_s, i_orb, i_z, i_y, i_x]
+    b_list = [b_s, b_orb, b_y, b_x, b_z]
+    i_list = [i_s, i_orb, i_y, i_x, i_z]
     b = 1
     for idx in range(len(i_list)):
         i = i_list[idx]
@@ -62,11 +62,11 @@ def get_hole(hole_uid):
     hole_uid //= b_s
     i_orb = hole_uid % b_orb
     hole_uid //= b_orb
-    i_z = hole_uid % b_z
-    hole_uid //= b_z
     i_y = hole_uid % b_y
     hole_uid //= b_y
     i_x = hole_uid % b_x
+    hole_uid //= b_x
+    i_z = hole_uid % b_z
 
     # 将这些数转为对应的空穴信息 hole = (x, y, z, orb, s)
     # i_x, i_y减去pam.Mc

@@ -31,7 +31,8 @@ tz_b1b1 = 0.047
 
 if_tz_exist = 2
 reduce_s = 0
-Neval = 30
+val_num = 1
+Neval = 100
 
 if Norb == 5:
     Ni_orbs = ['dx2y2', 'd3z2r2']

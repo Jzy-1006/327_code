@@ -10,6 +10,8 @@ if pam.Norb == 5:
     int_orb = {value: key for key, value in orb_int.items()}
 spin_int = {'up': 1, 'dn': 0}
 int_spin = {value: key for key, value in spin_int.items()}
+Ni_position = [(0, 0, z) for z in range(0, 2*pam.layer_num-1, 2) ]
+Ni_position = tuple(Ni_position)
 
 
 def get_unit_cell_rep(x, y, z):

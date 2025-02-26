@@ -1,6 +1,7 @@
 import time
 import numpy as np
 import scipy.sparse as sps
+from itertools import product
 import parameters as pam
 import lattice as lat
 import variational_space as vs
@@ -122,13 +123,13 @@ def get_interaction_mat(A, sym):
         interaction_mat = [[A+4.*B+3.*C, 4.*B+C],
                            [4.*B+C, A+4.*B+3.*C]]
 
-    if sym == '1B1':
+    elif sym == '1B1':
         Stot = 0
         Sz_set = [0]
         state_order = {('d3z2r2', 'dx2y2'): 0}
         interaction_mat = [[A+2.*C]]
 
-    if sym == '3B1':
+    elif sym == '3B1':
         Stot = 1
         Sz_set = [-1, 0, 1]
         state_order = {('d3z2r2', 'dx2y2'): 0}
@@ -403,7 +404,7 @@ def create_Esite_matrix(VS, A, ed, ep, eo):
     for row_idx in range(dim):
         state = VS.get_state(VS.lookup_tbl[row_idx])
         diag_el = 0.
-        Ni_num = {}
+        Ni_num = {position: 0 for position in lat.Ni_position}
         for x, y, z, orb, _ in state:
             # 计算d, p, apz轨道上的在位能
             if orb in pam.Ni_orbs:
@@ -415,14 +416,12 @@ def create_Esite_matrix(VS, A, ed, ep, eo):
 
             # 统计在相同Ni上的个数
             if orb in pam.Ni_orbs:
-                if (x, y, z) in Ni_num:
-                    Ni_num[(x, y, z)] += 1
-                else:
-                    Ni_num[(x, y, z)] = 1
+                Ni_num[(x, y, z)] += 1
 
-        # dn的能量, 比d8高A/2 * abs(n - 8)
+        # dn(n != 8)的能量, 比d8高A/2 * abs(n - 8)
         for num in Ni_num.values():
-            diag_el += A / 2 * abs(num - 2)
+            if num != 2:
+                diag_el += A + A / 2 * abs(num - 2)
 
         data.append(diag_el)
         row.append(row_idx)
@@ -451,6 +450,7 @@ def create_tz_matrix(VS, tz_fac):
     tz_keys = tz_fac.keys()
     # 只选择被夹的那一层(含有Ni)
     z_list = range(2, 2*pam.layer_num-1, 2)
+    z_list = list(z_list)
 
     # 遍历整个态空间
     for row_idx in range(dim):
@@ -464,7 +464,7 @@ def create_tz_matrix(VS, tz_fac):
             if z in z_list and (orb, orb) in tz_keys:     # 夹层并且满足选定的轨道
                 hop_z = z - 2   # 往下一层
                 hop_hole = (x, y, hop_z, orb, s)
-                if hop_hole in state:       # 是否符合Pauli不相容原理
+                if hop_hole not in state:       # 是否符合Pauli不相容原理
                     # 将其中的一个空穴换成是跳跃后的空穴
                     hop_state = list(state)
                     hop_state[hole_idx] = hop_hole
@@ -487,10 +487,13 @@ def get_double_occ_list(VS):
     """
     找出态中有两个空穴是在同一位置
     :param VS: 态空间
-    :return: d_state_idx, d_hole_idx, p_idx_pair, apz_idx_pair
+    :return: multi_d_state_idx = {Ni0位置: [state_idx1, state_idx2, ....]...}
+    multi_d_hole_idx, {Ni0位置: [state_idx1, state_idx2, ...]...}
+    p_idx_pair, [(p_idx, p_pair)...]
+    apz_idx_pair, [(apz_idx, apz_pair)...]
     """
-    d_state_idx = {}
-    d_hole_idx = {}
+    multi_d_state_idx = {}
+    multi_d_hole_idx = {}
     p_idx_pair = []
     apz_idx_pair = []
 
@@ -504,7 +507,7 @@ def get_double_occ_list(VS):
         Oap_num = {}        #相同层内O上空穴数目
         hole_num = len(state)
         for hole_idx in range(hole_num):
-            x, y, z, orb, s = state(hole_idx)
+            x, y, z, orb, s = state[hole_idx]
             if orb in pam.Ni_orbs:
                 if (x, y, z) in Ni_idx:
                     Ni_idx[(x, y, z)] += [hole_idx]
@@ -525,12 +528,12 @@ def get_double_occ_list(VS):
         for position, idx_list in Ni_idx.items():
             Ni_num = len(idx_list)
             if Ni_num == 2:
-                if position in d_state_idx:
-                    d_state_idx[position] += [i]
-                    d_hole_idx[position] += [idx_list]
+                if position in multi_d_state_idx:
+                    multi_d_state_idx[position] += [i]
+                    multi_d_hole_idx[position] += [idx_list]
                 else:
-                    d_state_idx[position] = [i]
-                    d_hole_idx[position] = [idx_list]
+                    multi_d_state_idx[position] = [i]
+                    multi_d_hole_idx[position] = [idx_list]
 
         # 记录在层内O上空穴数目大于1的态索引和空穴对
         p_pair = 0
@@ -548,4 +551,119 @@ def get_double_occ_list(VS):
         if apz_pair > 0:
             apz_idx_pair.append((i, apz_pair))
 
-    return d_state_idx, d_hole_idx, p_idx_pair, apz_idx_pair
+    return multi_d_state_idx, multi_d_hole_idx, p_idx_pair, apz_idx_pair
+
+
+def create_interaction_matrix_d8(VS, d_state_idx, d_hole_idx, S_val, Sz_val, A):
+    """
+    设置d8相互作用矩阵
+    :param VS:
+    :param d_state_idx: (state_idx1, state_idx2, ...)
+    :param d_hole_idx: ([hole_idx1, hole_idx2, ...], ....)
+    :param S_val: {state_idx1: S1, ...}
+    :param Sz_val: {state_idx1: Sz1, ...}
+    :param A:
+    :return: out
+    """
+    data = []
+    row = []
+    col = []
+    dim = VS.dim
+    # Ni轨道的所有可能组合
+    exist_orb34 = product(pam.Ni_orbs, repeat=2)
+    exist_orb34 = tuple(exist_orb34)
+
+    # 遍历所求对称性
+    channels = ('1A1', '1B1', '3B1')
+    for sym in channels:
+        Stot, Sz_set, state_order, interaction_mat = get_interaction_mat(A, sym)
+        for i, state_idx in enumerate(d_state_idx):
+            count = []      # 避免重复计算
+            state = VS.get_state(VS.lookup_tbl[state_idx])
+            # 提取d8的两个空穴轨道, S12和Sz12
+            hole_idx1, hole_idx2 = d_hole_idx[i]
+            orb1 = state[hole_idx1][-2]
+            orb2 = state[hole_idx2][-2]
+            orb12 = sorted([orb1, orb2])
+            orb12 = tuple(orb12)
+            S12 = S_val[state_idx]
+            Sz12 = Sz_val[state_idx]
+
+            # 判断轨道, S12, Sz12是否满足要求
+            if orb12 not in state_order.keys() or S12 != Stot or Sz12 not in Sz_set:
+                continue
+
+            # 得出interaction_mat的行索引
+            mat_idx1 = state_order[orb12]
+            # 遍历interaction_mat的列, 同时对应state_order.keys()
+            for mat_idx2, orb34 in enumerate(state_order.keys()):
+                if orb34 not in exist_orb34:
+                    continue
+
+                # 生成相互作用的另一个态, 并找出对应的索引
+                # 先生成新的d8对应的两个空穴
+                for s1 in ['dn', 'up']:
+                    for s2 in ['dn', 'up']:
+                        if (orb34[0], s1) == (orb34[1], s2):      # 检查是否满足Pauli不相容原理
+                            continue
+                        hole1 = state[hole_idx1][:3] + (orb34[0], s1)
+                        hole2 = state[hole_idx2][:3] + (orb34[1], s2)
+
+                        # 将state列表化, 并将其中的两个空穴替换成新的d8
+                        inter_state = list(state)
+                        inter_state[hole_idx1], inter_state[hole_idx2] = hole1, hole2
+                        inter_state, _ = vs.make_state_canonical(inter_state)
+
+                        # 找到相互作用态的索引
+                        inter_idx = VS.get_index(inter_state)
+                        if inter_idx is None or inter_idx in count:
+                            continue
+                        # 判断新的d8对应的S34, Sz34是否满足要求
+                        S34, Sz34 = S_val[inter_idx], Sz_val[inter_idx]
+                        if S34 != S12 or Sz34 != Sz12:
+                            continue
+
+                        # 利用mat_idx1和mat_idx找出矩阵值
+                        value = interaction_mat[mat_idx1][mat_idx2]
+                        data.append(value)
+                        row.append(state_idx)
+                        col.append(inter_idx)
+                        count.append(inter_idx)
+
+    out = sps.coo_matrix((data, (row, col)), shape=(dim, dim))
+
+    return out
+
+
+def create_interaction_matrix_po(VS, p_idx_pair, apz_idx_pair, Upp, Uoo):
+    """
+    设置p, pz轨道的相互作用
+    :param VS:
+    :param p_idx_pair: [(p_idx1, p_pair1), ...]
+    :param apz_idx_pair: [(apz_idx1, apz_idx2), ...]
+    :param Upp: p,p轨道的相互作用
+    :param Uoo: pz, pz轨道的相互作用
+    :return:
+    """
+    dim = VS.dim
+    data = []
+    row = []
+    col = []
+
+    # p, p轨道相互作用矩阵
+    if Upp != 0:
+        for state_idx, p_pair in p_idx_pair:
+            data.append(Upp*p_pair)
+            row.append(state_idx)
+            col.append(state_idx)
+
+    # pz, pz轨道相互作用矩阵
+    if Uoo != 0:
+        for state_idx, apz_pair in apz_idx_pair:
+            data.append(Uoo*apz_pair)
+            row.append(state_idx)
+            col.append(state_idx)
+
+    out = sps.coo_matrix((data, (row, col)), shape=(dim, dim))
+
+    return out

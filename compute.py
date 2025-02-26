@@ -1,5 +1,8 @@
 import os
 import time
+import numpy as np
+
+import basis_change
 import parameters as pam
 import variational_space as vs
 import hamiltonian as ham
@@ -35,9 +38,24 @@ def compute_Aw_main(A, Uoo, Upp, ed, ep, eo, tpd, tpp, tdo, tpo):
     # 生成Esite矩阵
     Esite = ham.create_Esite_matrix(VS, A, ed, ep, eo)
     # 跳跃部分
-    H0 = Tpd + Tpp + Tdo + Tpo + Tz + Esite
+    H0 = Tpd + Tpp + Tpo + Tdo + Tz + Esite
+    # H0 = H0 - Esite
 
-    gs.get_ground_state(H0, VS)
+    H = H0
+    # 依次变换到不同Ni(d8)上的耦合表象
+    for position, U_Ni in multi_U_Ni.items():
+        U_Ni_d = (U_Ni.conjugate()).transpose()
+        H_new = U_Ni_d @ H @ U_Ni
+        d_state_idx = multi_d_state_idx[position]
+        d_hole_idx = multi_d_hole_idx[position]
+        S_val = multi_S[position]
+        Sz_val = multi_Sz[position]
+        Hint = ham.create_interaction_matrix_d8(VS, d_state_idx, d_hole_idx, S_val, Sz_val, A)
+        H = H_new + Hint
+    Hint_po = ham.create_interaction_matrix_po(VS, p_idx_pair, apz_idx_pair, Upp, Uoo)
+    H = H + Hint_po
+
+    gs.get_ground_state(H, VS, multi_S, multi_Sz)
 
 
 if __name__ == '__main__':
@@ -50,6 +68,25 @@ if __name__ == '__main__':
         with open(file_path, 'w') as file:
             file.truncate(0)
 
+    tz_a1a1 = pam.tz_a1a1
+    tz_b1b1 = pam.tz_b1b1
+    if_tz_exist = pam.if_tz_exist
+
+    VS = vs.VariationalSpace()
+    multi_d_state_idx, multi_d_hole_idx, p_idx_pair, apz_idx_pair = ham.get_double_occ_list(VS)
+
+    # 变换到Ni(d8)上耦合表象下的矩阵
+    multi_U_Ni = {}
+    multi_S = {}
+    multi_Sz = {}
+    # 遍历所有的Ni
+    for position, d_state_idx in multi_d_state_idx.items():
+        d_hole_idx = multi_d_hole_idx[position]
+        U_Ni, S_val, Sz_val = basis_change.create_singlet_triplet_basis_change_matrix_d8(VS, d_state_idx, d_hole_idx)
+        multi_U_Ni[position] = U_Ni
+        multi_S[position] = S_val
+        multi_Sz[position] = Sz_val
+
     A = pam.A
     Uoo = pam.Uoos[0]
     Upp = pam.Upps[0]
@@ -61,14 +98,7 @@ if __name__ == '__main__':
     tpd = pam.tpd_list[4]
     tpp = pam.tpp_list[4]
     tdo = pam.tdo_list[4]
-    tpo = pam.tpd_list[4]
-    tz_a1a1 = pam.tz_a1a1
-    tz_b1b1 = pam.tz_b1b1
-    if_tz_exist = pam.if_tz_exist
-
-    VS = vs.VariationalSpace()
-    d_state_idx, d_hole_idx, p_idx_pair, apz_idx_pair = ham.get_double_occ_list(VS)
-
+    tpo = pam.tpo_list[4]
     compute_Aw_main(A, Uoo, Upp, ed, ep, eo, tpd, tpp, tdo, tpo)
     t1 = time.time()
     print('compute cost time', t1-t0)
