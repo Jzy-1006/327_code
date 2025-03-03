@@ -81,6 +81,55 @@ def get_hole(hole_uid):
     return hole
 
 
+def get_state_uid(state):
+    """
+    将态信息转化为数字信息
+    :param state: state = (hole1, hole2, ....)
+    :return: uid, 态对应的数字
+    """
+    Mc = pam.Mc
+    # 计算存储一个空穴信息需要多大的进制, 并记录在b_hole
+    b_x = 2 * Mc + 1
+    b_y = 2 * Mc + 1
+    b_z = 2 * pam.layer_num - 1
+    b_orb = pam.Norb
+    b_hole = b_x * b_y * b_z * b_orb * 2
+
+    # 将每个空穴数字, 按b_hole进制转成一个大数
+    uid = 0
+    for idx, hole in enumerate(state):
+        i_hole = get_hole_uid(hole)
+        uid += i_hole * (b_hole ** idx)
+    assert state == get_state(uid), 'check state and get_state are tuple'
+
+    return uid
+
+def get_state(uid):
+    """
+    将态的数字信息转为态信息
+    :param uid: 态的数字信息
+    :return: state = (hole1, hole2, ....)
+    """
+    Mc = pam.Mc
+    # 计算存储一个空穴信息需要多大的进制, 并记录在b_hole
+    b_x = 2 * Mc + 1
+    b_y = 2 * Mc + 1
+    b_z = 2 * pam.layer_num - 1
+    b_orb = pam.Norb
+    b_hole = b_x * b_y * b_z * b_orb * 2
+
+    # 将大数uid按照b_hole进制, 提取每个进制上的数
+    state = []
+    while uid:
+        hole_uid = uid % b_hole
+        hole = get_hole(hole_uid)
+        state.append(hole)
+        uid //= b_hole
+    state = tuple(state)
+
+    return state
+
+
 def count_inversion(state):
     """
     计算一个态, 需要经过多少次交换才能得到规范化的顺序
@@ -271,7 +320,6 @@ class VariationalSpace:
 
         # 生成所有可能组合的态, 并分类型, 根据能量范围得到所需要的态
         max_energy = pam.max_energy
-        max_energy = 100
         state_energy = []
         type_num = {}
         lookup_tbl = []
@@ -285,7 +333,7 @@ class VariationalSpace:
             else:
                 type_num[(state_type, energy)] += 1
             if energy < max_energy:
-                uid = self.get_state_uid(canonical_state)
+                uid = get_state_uid(canonical_state)
                 lookup_tbl.append(uid)
 
         lookup_tbl.sort()       # 一定要有这一步, 这会影响get_index函数
@@ -299,53 +347,6 @@ class VariationalSpace:
         print('VS cost time', t1 - t0)
         return lookup_tbl
 
-    def get_state_uid(self, state):
-        """
-        将态信息转化为数字信息
-        :param state: state = (hole1, hole2, ....)
-        :return: uid, 态对应的数字
-        """
-        Mc = pam.Mc
-        # 计算存储一个空穴信息需要多大的进制, 并记录在b_hole
-        b_x = 2 * Mc + 1
-        b_y = 2 * Mc + 1
-        b_z = 2 * pam.layer_num - 1
-        b_orb = pam.Norb
-        b_hole = b_x * b_y * b_z * b_orb * 2
-
-        # 将每个空穴数字, 按b_hole进制转成一个大数
-        uid = 0
-        for idx, hole in enumerate(state):
-            i_hole = get_hole_uid(hole)
-            uid += i_hole * (b_hole ** idx)
-        assert state == self.get_state(uid), 'check state and get_state are tuple'
-
-        return uid
-
-    def get_state(self, uid):
-        """
-        将态的数字信息转为态信息
-        :param uid: 态的数字信息
-        :return: state = (hole1, hole2, ....)
-        """
-        Mc = pam.Mc
-        # 计算存储一个空穴信息需要多大的进制, 并记录在b_hole
-        b_x = 2 * Mc + 1
-        b_y = 2 * Mc + 1
-        b_z = 2 * pam.layer_num - 1
-        b_orb = pam.Norb
-        b_hole = b_x * b_y * b_z * b_orb * 2
-
-        # 将大数uid按照b_hole进制, 提取每个进制上的数
-        state = []
-        while uid:
-            hole_uid = uid % b_hole
-            hole = get_hole(hole_uid)
-            state.append(hole)
-            uid //= b_hole
-        state = tuple(state)
-
-        return state
 
     def get_index(self, state):
         """
@@ -353,7 +354,7 @@ class VariationalSpace:
         :param state: state = ((x1, y1, z1, orb1, s1)...)
         :return: index, state对应在lookup_tbl中的索引
         """
-        uid = self.get_state_uid(state)
+        uid = get_state_uid(state)
         index = bisect.bisect_left(self.lookup_tbl, uid)
 
         # 判断索引是否超出lookup_tbl

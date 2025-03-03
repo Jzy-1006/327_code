@@ -164,7 +164,7 @@ def create_tpd_nn_matrix(VS, tpd_nn_hop_dir, tpd_nn_hop_fac):
 
     # 遍历整个态空间
     for row_idx in range(dim):
-        state = VS.get_state(VS.lookup_tbl[row_idx])
+        state = vs.get_state(VS.lookup_tbl[row_idx])
         hole_num = len(state)
 
         # 其中一个空穴跳跃, 其他空穴不动
@@ -223,7 +223,7 @@ def create_tpp_nn_matrix(VS, tpp_nn_hop_dir, tpp_nn_hop_fac):
 
     # 遍历整个态空间
     for row_idx in range(dim):
-        state = VS.get_state(VS.lookup_tbl[row_idx])
+        state = vs.get_state(VS.lookup_tbl[row_idx])
         hole_num = len(state)
 
         # 其中一个空穴跳跃, 其他空穴不动
@@ -286,7 +286,7 @@ def create_tdo_nn_matrix(VS, tdo_nn_hop_dir, tdo_nn_hop_fac):
 
     # 遍历整个态空间
     for row_idx in range(dim):
-        state = VS.get_state(VS.lookup_tbl[row_idx])
+        state = vs.get_state(VS.lookup_tbl[row_idx])
         hole_num = len(state)
 
         # 其中一个空穴跳跃, 其他空穴不动
@@ -345,7 +345,7 @@ def create_tpo_nn_matrix(VS, tpo_nn_hop_dir, tpo_nn_hop_fac):
 
     # 遍历整个态空间
     for row_idx in range(dim):
-        state = VS.get_state(VS.lookup_tbl[row_idx])
+        state = vs.get_state(VS.lookup_tbl[row_idx])
         hole_num = len(state)
 
         # 其中一个空穴跳跃, 其他空穴不动
@@ -402,7 +402,7 @@ def create_Esite_matrix(VS, A, ed, ep, eo):
     row = []
     col = []
     for row_idx in range(dim):
-        state = VS.get_state(VS.lookup_tbl[row_idx])
+        state = vs.get_state(VS.lookup_tbl[row_idx])
         diag_el = 0.
         Ni_num = {position: 0 for position in lat.Ni_position}
         for x, y, z, orb, _ in state:
@@ -454,7 +454,7 @@ def create_tz_matrix(VS, tz_fac):
 
     # 遍历整个态空间
     for row_idx in range(dim):
-        state = VS.get_state(VS.lookup_tbl[row_idx])
+        state = vs.get_state(VS.lookup_tbl[row_idx])
         hole_num = len(state)
 
         # 其中一个空穴跳跃, 其他空穴不动
@@ -500,7 +500,7 @@ def get_double_occ_list(VS):
     dim = VS.dim
     # 遍历整个态空间
     for i in range(dim):
-        state = VS.get_state(VS.lookup_tbl[i])
+        state = vs.get_state(VS.lookup_tbl[i])
         # 统计在相同Ni上空穴的索引和在相同O上空穴数目
         Ni_idx = {}
         O_num = {}      # 相同层间O上空穴数目
@@ -579,13 +579,13 @@ def create_interaction_matrix_d8(VS, d_state_idx, d_hole_idx, S_val, Sz_val, A):
         Stot, Sz_set, state_order, interaction_mat = get_interaction_mat(A, sym)
         for i, state_idx in enumerate(d_state_idx):
             count = []      # 避免重复计算
-            state = VS.get_state(VS.lookup_tbl[state_idx])
+            state = vs.get_state(VS.lookup_tbl[state_idx])
             # 提取d8的两个空穴轨道, S12和Sz12
             hole_idx1, hole_idx2 = d_hole_idx[i]
             orb1 = state[hole_idx1][-2]
             orb2 = state[hole_idx2][-2]
-            orb12 = sorted([orb1, orb2])
-            orb12 = tuple(orb12)
+            orb1, orb2 = sorted([orb1, orb2])
+            orb12 = (orb1, orb2)
             S12 = S_val[state_idx]
             Sz12 = Sz_val[state_idx]
 

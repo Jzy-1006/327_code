@@ -1,6 +1,7 @@
 import os
 import time
 import numpy as np
+import pandas as pd
 
 import basis_change
 import parameters as pam
@@ -38,8 +39,7 @@ def compute_Aw_main(A, Uoo, Upp, ed, ep, eo, tpd, tpp, tdo, tpo):
     # 生成Esite矩阵
     Esite = ham.create_Esite_matrix(VS, A, ed, ep, eo)
     # 跳跃部分
-    H0 = Tpd + Tpp + Tpo + Tdo + Tz + Esite
-    # H0 = H0 - Esite
+    H0 = Tpd + Tpp + Tdo + Tpo + Tz + Esite
 
     H = H0
     # 依次变换到不同Ni(d8)上的耦合表象
@@ -55,7 +55,33 @@ def compute_Aw_main(A, Uoo, Upp, ed, ep, eo, tpd, tpp, tdo, tpo):
     Hint_po = ham.create_interaction_matrix_po(VS, p_idx_pair, apz_idx_pair, Upp, Uoo)
     H = H + Hint_po
 
-    gs.get_ground_state(H, VS, multi_S, multi_Sz)
+    print(f"\nA = {A}, Uoo = {Uoo}, Upp = {Upp}\ned = {ed}, ep = {ep}, eo = {eo}\n"
+          f"tpd = {tpd}, tpp = {tpp}, tdo = {tdo}, tpo = {tpo}\n")
+    if pam.layer_num == 2:
+        H_bond = U_bond_d @ H @ U_bond
+        df = gs.get_ground_state(H_bond, VS, multi_S, multi_Sz, bonding_val=bonding_val)
+    else:
+        df = gs.get_ground_state(H, VS, multi_S, multi_Sz)
+
+    return df
+
+
+def type_weight():
+    """
+    计算state_type_weight随参数的变化
+    :return: df, 列分别是state_type, 参数1下的state_type_weight, 参数2...
+    """
+    tpd = tpd_list[0]
+    tdo = tpd*1.05
+    dfs = compute_Aw_main(A, Uoo, Upp, ed, ep, eo, tpd, tpp, tdo, tpo)
+    dfs.rename(columns={"type_weight":f"tpd={tpd}"}, inplace=True)
+
+    for tpd in tpd_list[1:]:
+        tdo = 1.05*tpd
+        df = compute_Aw_main(A, Uoo, Upp, ed, ep, eo, tpd, tpp, tdo, tpo)
+        df.rename(columns={"type_weight":f"tpd={tpd}"}, inplace=True)
+        dfs = pd.merge(dfs, df, on='state_type', how='inner')
+    dfs.to_csv('./data/type_weight.csv', index=False)
 
 
 if __name__ == '__main__':
@@ -87,6 +113,11 @@ if __name__ == '__main__':
         multi_S[position] = S_val
         multi_Sz[position] = Sz_val
 
+    # bonding, anti_bonding变换矩阵
+    if pam.layer_num == 2:
+        U_bond, bonding_val = basis_change.create_bonding_anti_bonding_basis_change_matrix(VS)
+        U_bond_d = (U_bond.conjugate()).transpose()
+
     A = pam.A
     Uoo = pam.Uoos[0]
     Upp = pam.Upps[0]
@@ -95,10 +126,12 @@ if __name__ == '__main__':
     ep = pam.ep_list[4]
     eo = pam.eo_list[4]
 
-    tpd = pam.tpd_list[4]
+    tpd_list = np.linspace(0.9*1.58, 1.1*1.58, num=3)
+    # tpd = pam.tpd_list[4]
     tpp = pam.tpp_list[4]
-    tdo = pam.tdo_list[4]
+    # tdo = pam.tdo_list[4]
     tpo = pam.tpo_list[4]
-    compute_Aw_main(A, Uoo, Upp, ed, ep, eo, tpd, tpp, tdo, tpo)
+    type_weight()
+
     t1 = time.time()
     print('compute cost time', t1-t0)

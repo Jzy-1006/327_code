@@ -36,7 +36,7 @@ def create_singlet_triplet_basis_change_matrix_d8(VS, d_state_idx, d_hole_idx):
     for i, state_idx in enumerate(d_state_idx):
         if state_idx in count_list:
             continue
-        state = VS.get_state(VS.lookup_tbl[state_idx])
+        state = vs.get_state(VS.lookup_tbl[state_idx])
         # d8态中两个空穴索引
         hole_idx1, hole_idx2 = d_hole_idx[i]
         orb1, s1 = state[hole_idx1][-2:]
@@ -111,3 +111,76 @@ def create_singlet_triplet_basis_change_matrix_d8(VS, d_state_idx, d_hole_idx):
     out = sps.coo_matrix((data, (row, col)), shape=(dim, dim)) / np.sqrt(2)
 
     return out, S_d8_val, Sz_d8_val
+
+
+def create_bonding_anti_bonding_basis_change_matrix(VS):
+    """
+
+    :param VS:
+    :return:
+    """
+    dim = VS.dim
+    data = []
+    row = []
+    col = []
+    count_list = []     # 防止重复
+    bonding_val = {}
+
+    # 遍历所有态
+    for i in range(dim):
+        state = vs.get_state(VS.lookup_tbl[i])
+        hole_num = len(state)
+
+        # if_Ni0_dz2和if_Ni2_dz2判断态里面是否有(0, 0, 0)位置的dz2和(0, 0, 2)位置的dz2
+        if_Ni0_dz2 = False
+        if_Ni2_dz2 = False
+
+        # 遍历整个态, 通过上下两层对称变换得到partner_state, 同时判断判断态里面是否有(0, 0, 0)位置的dz2和(0, 0, 2)位置的dz2
+        partner_state = list(state)
+        for hole_idx in range(hole_num):
+            x, y, z, orb, s = state[hole_idx]
+            if z == 0 and orb == 'd3z2r2':
+                if_Ni0_dz2 = True
+            if z == 2 and orb == 'd3z2r2':
+                if_Ni2_dz2 = True
+            partner_state[hole_idx] = (x, y, 2-z, orb, s)
+        partner_state, ph = vs.make_state_canonical(partner_state)
+        j = VS.get_index(partner_state)
+
+        # 如果对称对角线位置设为sqrt(2)
+        if j == i:
+            data.append(np.sqrt(2))
+            row.append(i)
+            col.append(i)
+        # 如果
+        elif if_Ni0_dz2 and if_Ni2_dz2:
+            if i not in count_list:
+                # 记录对应的j, 防止在循环时重复
+                count_list.append(j)
+                # i为bonding
+                data.append(1.)
+                row.append(i)
+                col.append(i)
+
+                data.append(ph)
+                row.append(j)
+                col.append(i)
+                bonding_val[i] = 1
+
+                # j为anti_bonding
+                data.append(1.)
+                row.append(i)
+                col.append(j)
+
+                data.append(-ph)
+                row.append(j)
+                col.append(j)
+                bonding_val[j] = -1
+        else:
+            data.append(np.sqrt(2))
+            row.append(i)
+            col.append(i)
+
+    out = sps.coo_matrix((data, (row, col)), shape=(dim,dim)) / np.sqrt(2)
+
+    return out, bonding_val
