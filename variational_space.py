@@ -165,76 +165,6 @@ def make_state_canonical(state):
     return canonical_state, phase
 
 
-def get_state_type(state):
-    """
-    按照Ni, 层内O, 层间O每层的数量给态分类
-    :param state: state = ((x1, y1, z1, orb1, s1), ...)
-    :return:state_type
-    """
-    layer_num = pam.layer_num
-    # 统计每一层Ni, 层内O, 层间O的数量
-    Ni_num = [0] * layer_num
-    O_num = [0] * layer_num
-    Oap_num = [0] * layer_num
-    for hole in state:
-        x, y, z, orb, _ = hole
-        # Ni
-        if orb in pam.Ni_orbs:      # 这里尽量用轨道来判断, 方便以后修改lattice.py
-            idx = int(z / 2)
-            Ni_num[idx] += 1
-        # 层内O
-        if orb in pam.O_orbs:
-            idx = int(z / 2)
-            O_num[idx] += 1
-        # 层间O
-        if orb in pam.Oap_orbs:
-            idx = int((z - 1) / 2)
-            Oap_num[idx] += 1
-
-    # 对称等价的数量分布
-    Ni_num_sym = Ni_num[::-1]
-    O_num_sym = O_num[::-1]
-    Oap_num_sym = Oap_num[::-1]
-
-    # 选择其中一种等价的态类型
-    # 先判断Ni, 选择前面Ni数量多的, 再依次判断层内O和层间O, 选择前面少的
-    if Ni_num_sym > Ni_num:
-        Ni_num, O_num, Oap_num = Ni_num_sym, O_num_sym, Oap_num_sym
-    elif Ni_num_sym == Ni_num:
-        if [O_num_sym, Oap_num_sym] < [O_num, Oap_num_sym]:
-            O_num, Oap_num = O_num_sym, Oap_num_sym
-
-    # 根据每一层Ni, 层内O和层间O的空穴数量, 生成态的类型
-    state_type = []
-    for idx, Ni in enumerate(Ni_num):
-        On = O_num[idx]
-
-        # 先根据Ni和层内O的数量生成
-        if Ni != 0 or On != 0:
-            dL = []
-            if Ni != 0:
-                dL.append(f'd{10-Ni}')
-            if On == 1:
-                dL.append('L')
-            elif On != 0:
-                dL.append(f'L{On}')
-            dL = ''.join(dL)
-            state_type.append(dL)
-
-        # 再根据层间O的数量生成
-        if idx < len(Oap_num):
-            Oap = Oap_num[idx]
-            if Oap != 0:
-                if Oap == 1:
-                    Oap_type = 'O'
-                else:
-                    Oap_type = f'O{Oap}'
-                state_type.append(Oap_type)
-    state_type = '-'.join(state_type)
-
-    return state_type
-
-
 def get_atomic_energy(state, A, Upp, Uoo, ep, eo):
     """
     大致计算该态在原子极限下的能量(以d8为基态, 设d8的能量为0)
@@ -325,7 +255,9 @@ class VariationalSpace:
         lookup_tbl = []
         for state in combinations(hole_list, hole_num):
             canonical_state, _ = make_state_canonical(state)        # 将态按一定顺序排列, 避免重复
-            state_type = get_state_type(canonical_state)
+            state_type = lat.get_state_type(canonical_state)
+            if 'd6' in state_type:
+                continue
             energy = get_atomic_energy(canonical_state, 6., 4., 4., 2.9, 3.24)
             if (state_type, energy) not in state_energy:
                 state_energy.append((state_type, energy))

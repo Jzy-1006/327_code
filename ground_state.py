@@ -46,7 +46,7 @@ def get_ground_state(matrix, VS, multi_S_val, multi_Sz_val, **kwargs):
         for istate in range(dim):
             weight = weight_average[istate]
             state = vs.get_state(VS.lookup_tbl[istate])
-            state_type = vs.get_state_type(state)
+            state_type = lat.get_state_type(state)
 
             data['state_type'].append(state_type)
             data['weight'].append(weight)
@@ -57,10 +57,14 @@ def get_ground_state(matrix, VS, multi_S_val, multi_Sz_val, **kwargs):
         df['type_weight'] = df.groupby('state_type')['weight'].transform('sum')
 
         # 按type_weight降序排列, 并修改原本的df, inplace = True
-        df.sort_values(by=['type_weight', 'weight'], ascending=[False, False], inplace=True)
-        # 挑取其中态类型和对应的weight, 并除去重复列
+        df.sort_values(by=['type_weight', 'state_type', 'weight'], ascending=[False, True, False], inplace=True)
+
         if i == 0:
-            df_state_type = df[['state_type', 'type_weight']].drop_duplicates(subset='state_type')
+            # 提取态类型和type_weight, 并除去重复列
+            df_type = df[['state_type', 'type_weight']].drop_duplicates(subset='state_type')
+            df_type = df_type.T
+            df_type.columns = df_type.iloc[0]
+            df_type.drop('state_type', inplace=True)
 
         # 先输出state_type: type_weight, 再层次化输出state和weight
         current_type = None
@@ -108,4 +112,4 @@ def get_ground_state(matrix, VS, multi_S_val, multi_Sz_val, **kwargs):
     t1 = time.time()
     print('gs cost time', t1-t0)
 
-    return df_state_type
+    return df_type

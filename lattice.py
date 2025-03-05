@@ -39,3 +39,66 @@ def get_unit_cell_rep(x, y, z):
         return pam.O2_orbs
     else:
         return ['NotOnSublattice']
+
+
+def get_state_type(state):
+    """
+    按照Ni, 层内O, 层间O每层的数量给态分类
+    :param state: state = ((x1, y1, z1, orb1, s1), ...)
+    :return:state_type
+    """
+    layer_num = pam.layer_num
+    # 统计每一层Ni, 层内O, 层间O的数量
+    Ni_num = {}
+    O_num = {}
+    Oap_num = {}
+    for hole in state:
+        _, _, z, orb, _ = hole
+        # Ni
+        if orb in pam.Ni_orbs:
+            if z in Ni_num:
+                Ni_num[z] += 1
+            else:
+                Ni_num[z] = 1
+        # 层内O
+        if orb in pam.O_orbs:
+            if z in O_num:
+                O_num[z] += 1
+            else:
+                O_num[z] = 1
+        # 层间O
+        if orb in pam.Oap_orbs:
+            if z in Oap_num:
+                Oap_num[z] += 1
+            else:
+                Oap_num[z] = 1
+
+    # 根据每一层Ni, 层内O和层间O的空穴数量, 生成态的类型
+    state_type = {}
+    # Ni
+    for z, num in Ni_num.items():
+        state_type[z] = f'd{10 - num}'
+    # 层内O
+    for z, num in O_num.items():
+        if num == 1:
+            if z in state_type:
+                state_type[z] += f'L'
+            else:
+                state_type[z] = f'L'
+        else:
+            if z in state_type:
+                state_type[z] = f'L{num}'
+            else:
+                state_type[z] = f'L{num}'
+    # 层间O
+    for z, num in Oap_num.items():
+        if num == 1:
+            state_type[z] = f'O'
+        else:
+            state_type[z] = f'O{num}'
+
+    sorted_z = sorted(state_type.keys())
+    state_type = [state_type[z] for z in sorted_z]
+    state_type = '-'.join(state_type)
+
+    return state_type

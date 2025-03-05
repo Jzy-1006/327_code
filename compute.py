@@ -57,31 +57,34 @@ def compute_Aw_main(A, Uoo, Upp, ed, ep, eo, tpd, tpp, tdo, tpo):
 
     print(f"\nA = {A}, Uoo = {Uoo}, Upp = {Upp}\ned = {ed}, ep = {ep}, eo = {eo}\n"
           f"tpd = {tpd}, tpp = {tpp}, tdo = {tdo}, tpo = {tpo}\n")
-    if pam.layer_num == 2:
+    if pam.if_bond:
         H_bond = U_bond_d @ H @ U_bond
-        df = gs.get_ground_state(H_bond, VS, multi_S, multi_Sz, bonding_val=bonding_val)
+        df_state_type = gs.get_ground_state(H_bond, VS, multi_S, multi_Sz, bonding_val=bonding_val)
     else:
-        df = gs.get_ground_state(H, VS, multi_S, multi_Sz)
+        df_state_type = gs.get_ground_state(H, VS, multi_S, multi_Sz)
 
-    return df
+    return df_state_type
 
 
 def type_weight():
     """
     计算state_type_weight随参数的变化
-    :return: df, 列分别是state_type, 参数1下的state_type_weight, 参数2...
+    :return: df_types, 列分别是state_type, 参数1下的state_type_weight, 参数2...
     """
     tpd = tpd_list[0]
     tdo = tpd*1.05
-    dfs = compute_Aw_main(A, Uoo, Upp, ed, ep, eo, tpd, tpp, tdo, tpo)
-    dfs.rename(columns={"type_weight":f"tpd={tpd}"}, inplace=True)
+    df_types = compute_Aw_main(A, Uoo, Upp, ed, ep, eo, tpd, tpp, tdo, tpo)
+
+    df_types.insert(0, 'tpd', tpd)
 
     for tpd in tpd_list[1:]:
         tdo = 1.05*tpd
-        df = compute_Aw_main(A, Uoo, Upp, ed, ep, eo, tpd, tpp, tdo, tpo)
-        df.rename(columns={"type_weight":f"tpd={tpd}"}, inplace=True)
-        dfs = pd.merge(dfs, df, on='state_type', how='inner')
-    dfs.to_csv('./data/type_weight.csv', index=False)
+        df_type = compute_Aw_main(A, Uoo, Upp, ed, ep, eo, tpd, tpp, tdo, tpo)
+        df_type.insert(0, 'tpd', tpd)
+
+        df_types = pd.concat([df_types, df_type], axis=0)
+
+    df_types.to_csv('./data/type_weight.csv', index=False)
 
 
 if __name__ == '__main__':
@@ -126,11 +129,12 @@ if __name__ == '__main__':
     ep = pam.ep_list[4]
     eo = pam.eo_list[4]
 
-    tpd_list = np.linspace(0.9*1.58, 1.1*1.58, num=3)
-    # tpd = pam.tpd_list[4]
+    tpd_list = np.linspace(0.5*1.58, 1.1*1.58, num=11)
+    tpd = pam.tpd_list[4]
     tpp = pam.tpp_list[4]
-    # tdo = pam.tdo_list[4]
+    tdo = pam.tdo_list[4]
     tpo = pam.tpo_list[4]
+    # compute_Aw_main(A, Uoo, Upp, ed, ep, eo, tpd, tpp, tdo, tpo)
     type_weight()
 
     t1 = time.time()
