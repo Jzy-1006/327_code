@@ -87,7 +87,7 @@ def get_state_type(state):
                 state_type[z] = f'L'
         else:
             if z in state_type:
-                state_type[z] = f'L{num}'
+                state_type[z] += f'L{num}'
             else:
                 state_type[z] = f'L{num}'
     # 层间O
@@ -102,3 +102,84 @@ def get_state_type(state):
     state_type = '-'.join(state_type)
 
     return state_type
+
+
+def get_orb_type(state):
+    """
+    将具体的state_type细化, 输出具体的d轨道
+    :param state:
+    :return:
+    """
+    simple_orbs = {'d3z2r2': 'dz2', 'dx2y2': 'dx2'} # 简化坐标表示
+    Ni_orb = {}
+    Oap_orb = {}    # 收集层间O的轨道数目
+    L_orb = {}  # 收集层内O的轨道数目
+    for hole in state:
+        _, _, z, orb, _ = hole
+        if orb in pam.Ni_orbs:
+            if orb in simple_orbs:
+                orb = simple_orbs[orb]
+            if z in Ni_orb:
+                Ni_orb[z] += [orb]
+            else:
+                Ni_orb[z] = [orb]
+        elif orb in pam.Oap_orbs:
+            if z in Oap_orb:
+                Oap_orb[z] += 1
+            else:
+                Oap_orb[z] = 1
+        else:
+            if z in L_orb:
+                L_orb[z] += 1
+            else:
+                L_orb[z] = 1
+
+    orb_type = {}
+    for z, orbs in Ni_orb.items():
+        orbs.sort()
+        orb_type[z] = ''.join(orbs)
+    for z, num in L_orb.items():
+        if z in orb_type:
+            if num == 1:
+                orb_type[z] += f'L'
+            else:
+                orb_type[z] += f'L{num}'
+        else:
+            if num == 1:
+                orb_type[z] = f'L'
+            else:
+                orb_type[z] = f'L{num}'
+    for z, num in Oap_orb.items():
+        if z in orb_type:
+            if num == 1:
+                orb_type[z] += f'apz'
+            else:
+                orb_type[z] += f'apz{num}'
+        else:
+            if num == 1:
+                orb_type[z] = f'apz'
+            else:
+                orb_type[z] = f'apz{num}'
+    sorted_z = sorted(orb_type.keys())
+    orb_type = [orb_type[z] for z in sorted_z]
+    orb_type = '_'.join(orb_type)
+
+    return orb_type
+
+
+def get_Ni_side_num(state):
+    """
+    得到和Ni同一边的空穴个数
+    改动该函数, 对应basis_change.py中的
+    create_singlet_triplet_basis_change_matrix也要一起修改
+    :param state:
+    :return:
+    """
+    side1_idx = []
+    side2_idx = []
+    for idx, hole in enumerate(state):
+        if hole[2] == 0:
+            side1_idx.append(idx)
+        elif hole[2] == 2:
+            side2_idx.append(idx)
+    return side1_idx, side2_idx

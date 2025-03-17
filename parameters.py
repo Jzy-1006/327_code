@@ -1,16 +1,25 @@
 import numpy as np
 
 # hole_num: 空穴数目, layer_num: 层数, Norb: 轨道数目
-hole_num = 4
-layer_num = 2
-max_energy = 100.
+hole_num = 8
+layer_num = 3
+max_energy = 14
+# Sz = 'All_Sz'时, 考虑的所有自旋的情况
+Sz_list = ['All_Sz']
+# Sz_list = [0]
+if_coupled = 1
+if_basis_change_type = 'd_double'
+
 Norb = 5
 Mc = 2
 pressure_list = (0, 4, 8, 16, 29.5)
 
-A = 6.0
+A = 6.
+A_list = [5., 6., 7.]
 B = 0.15
 C = 0.58
+Upp = 4.
+Uoo = 4.
 Upps = [4.0]
 Uoos = [4.0]
 
@@ -31,7 +40,6 @@ tz_b1b1 = 0.047
 
 if_tz_exist = 2
 if_bond = 0
-reduce_s = 0
 val_num = 1
 Neval = 10
 

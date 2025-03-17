@@ -39,47 +39,49 @@ def get_ground_state(matrix, VS, multi_S_val, multi_Sz_val, **kwargs):
         weight_average = np.average(abs(vecs[:, degen_idx[i]:degen_idx[i + 1]]) ** 2, axis=1)
 
         # 创建MultiIndex DataFrame, 类似excel格式
-        if 'bonding_val' in kwargs:
-            data = {'state_type': [], 'vec': [], 'weight': []}
-        else:
-            data = {'state_type': [], 'vec': [], 'weight': []}
+        data = {'state_type': [], 'orb_type': [], 'vec': [], 'weight': []}
         for istate in range(dim):
             weight = weight_average[istate]
             state = vs.get_state(VS.lookup_tbl[istate])
             state_type = lat.get_state_type(state)
+            orb_type = lat.get_orb_type(state)
 
             data['state_type'].append(state_type)
+            data['orb_type'].append(orb_type)
             data['weight'].append(weight)
             data['vec'].append(vecs[istate, degen_idx[i]:degen_idx[i + 1]])
 
         df = pd.DataFrame(data)
         # 计算state_type总的weight
-        df['type_weight'] = df.groupby('state_type')['weight'].transform('sum')
+        df['type_weight'] = df.groupby('state_type')['weight'].transform('sum').round(6)
+        df['orb_type_weight'] = df.groupby('orb_type')['weight'].transform('sum').round(6)
 
-        # 按type_weight降序排列, 并修改原本的df, inplace = True
-        df.sort_values(by=['type_weight', 'state_type', 'weight'], ascending=[False, True, False], inplace=True)
+        # 依次按type_weight, orb_type_weight降序排列, 并修改原本的df, inplace = True
+        df.sort_values(by=['type_weight', 'state_type', 'orb_type_weight', 'orb_type', 'weight'],
+                       ascending=[False, True, False, True, False], inplace=True)
 
+        # 只返回基态的数据
         if i == 0:
-            # 提取态类型和type_weight, 并除去重复列
-            df_type = df[['state_type', 'type_weight']].drop_duplicates(subset='state_type')
-            df_type = df_type.T
-            df_type.columns = df_type.iloc[0]
-            df_type.drop('state_type', inplace=True)
+            select_df = df[['state_type', 'orb_type', 'type_weight', 'orb_type_weight', 'weight']]
 
-        # 先输出state_type: type_weight, 再层次化输出state和weight
+        # 先输出state_type: type_weight, 再层次化输出orb_typeP orb_type_weight, 最后输出state和weight
         current_type = None
+        current_orb_type = None
         for istate, row in df.iterrows():
-            if row['type_weight'] < 1e-2:
-                small_type = row['state_type']
+            if row['type_weight'] < 0.02:
                 continue
             if row['state_type'] != current_type:
                 current_type = row['state_type']
-                print(f"{current_type}: {row['type_weight']}")
+                print(f"{current_type}: {row['type_weight']}\n")
+
+            if row['orb_type'] != current_orb_type and row['orb_type_weight'] > 1e-3:
+                current_orb_type = row['orb_type']
+                print(f"{current_orb_type}: {row['orb_type_weight']}\n")
 
             state = vs.get_state(VS.lookup_tbl[istate])
             weight = row['weight']
             vec = row['vec']
-            if weight < 1e-4:
+            if weight < 1e-3:
                 continue
 
             # 将态转为字符串
@@ -99,10 +101,9 @@ def get_ground_state(matrix, VS, multi_S_val, multi_Sz_val, **kwargs):
             for position in lat.Ni_position:
                 if istate in multi_S_val[position]:
                     other_string.append(f'S,Sz{position} = {multi_S_val[position][istate]},{multi_Sz_val[position][istate]}')
-            # bonding_val转为字符串
-            if 'bonding_val' in kwargs:
-                if istate in kwargs['bonding_val']:
-                    other_string.append(f"bonding_val = {kwargs['bonding_val'][istate]}")
+            if 'S_val' in kwargs:
+                if istate in kwargs['S_val']:
+                    other_string.append(f"S_tot, Sz_tot = {kwargs['S_val'][istate]}, {kwargs['Sz_val'][istate]}")
             # 串联字符串
             other_string = '; '.join(other_string)
 
@@ -110,6 +111,6 @@ def get_ground_state(matrix, VS, multi_S_val, multi_Sz_val, **kwargs):
             print(f"\t{state_string}\n\t{other_string}\n\tweight = {weight}\n\tvec = {vec}\n")
 
     t1 = time.time()
-    print('gs cost time', t1-t0)
+    print(f'gs time {t1-t0}\n')
 
-    return df_type
+    return vals, select_df

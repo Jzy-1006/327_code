@@ -104,6 +104,7 @@ def get_state_uid(state):
 
     return uid
 
+
 def get_state(uid):
     """
     将态的数字信息转为态信息
@@ -221,16 +222,30 @@ def get_atomic_energy(state, A, Upp, Uoo, ep, eo):
 
 
 class VariationalSpace:
-    def __init__(self):
+    def __init__(self, Sz):
+        self.Sz = Sz
         self.lookup_tbl = self.create_lookup_tbl()
         self.dim = len(self.lookup_tbl)
-        print(f'VS.dim = {self.dim}')
+        print(f'Sz = {Sz}, VS.dim = {self.dim}')
 
     def create_lookup_tbl(self):
         """
         找出所有可能的态，并根据能量的大小，砍去一部分态后存储在列表中
         :return: lookup_tbl
         """
+
+        def get_state_Sz(state):
+            """
+            得到态的总自旋z分量
+            :param state: state = ((x, y, z, orb, s), ...)
+            :return: Sz
+            """
+            Sz = 0
+            for hole in state:
+                s = hole[-1]
+                Sz += 1/2 if s == 'up' else -1/2
+            return Sz
+
         t0 = time.time()
         Mc = pam.Mc
         layer_num = pam.layer_num
@@ -248,17 +263,28 @@ class VariationalSpace:
                         for s in ['up', 'dn']:
                             hole_list.append((x, y, z, orb, s))
 
-        # 生成所有可能组合的态, 并分类型, 根据能量范围得到所需要的态
+        # 生成所有可能组合的态, 并分类型, 根据Sz和能量范围得到所需要的态
         max_energy = pam.max_energy
         state_energy = []
         type_num = {}
         lookup_tbl = []
         for state in combinations(hole_list, hole_num):
+            # 根据输入的Sz, 确定所要计算的总自旋
+            if self.Sz != 'All_Sz':
+                Sz = get_state_Sz(state)
+                if Sz != self.Sz:
+                    continue
+
             canonical_state, _ = make_state_canonical(state)        # 将态按一定顺序排列, 避免重复
             state_type = lat.get_state_type(canonical_state)
+
+            # 去除含有d6的态
             if 'd6' in state_type:
                 continue
+
+            # 估计这个态原子极限时的能量, 并根据能量范围保留态
             energy = get_atomic_energy(canonical_state, 6., 4., 4., 2.9, 3.24)
+            energy = round(energy, 5)
             if (state_type, energy) not in state_energy:
                 state_energy.append((state_type, energy))
                 type_num[(state_type, energy)] = 1
