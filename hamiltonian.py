@@ -200,7 +200,7 @@ def create_tpd_nn_matrix(VS, tpd_nn_hop_dir, tpd_nn_hop_fac):
 
     out = sps.coo_matrix((data, (row, col)), shape=(dim, dim))
     t1 = time.time()
-    print('Tpd time', t1-t0)
+    print(f"Tpd time {(t1-t0)//60//60}h {(t1-t0)//60%60}min {(t1-t0) % 60}s")
 
     return out
 
@@ -263,7 +263,7 @@ def create_tpp_nn_matrix(VS, tpp_nn_hop_dir, tpp_nn_hop_fac):
 
     out = sps.coo_matrix((data, (row, col)), shape=(dim, dim))
     t1 = time.time()
-    print('Tpp time', t1 - t0)
+    print(f'Tpp time {(t1-t0)//60//60}h {(t1-t0)//60%60}min {(t1-t0) % 60}s')
 
     return out
 
@@ -322,7 +322,7 @@ def create_tdo_nn_matrix(VS, tdo_nn_hop_dir, tdo_nn_hop_fac):
 
     out = sps.coo_matrix((data, (row, col)), shape=(dim, dim))
     t1 = time.time()
-    print('Tdo time', t1 - t0)
+    print(f'Tdo time {(t1-t0)//60//60}h {(t1-t0)//60%60}min {(t1-t0) % 60}s')
 
     return out
 
@@ -381,7 +381,7 @@ def create_tpo_nn_matrix(VS, tpo_nn_hop_dir, tpo_nn_hop_fac):
 
     out = sps.coo_matrix((data, (row, col)), shape=(dim, dim))
     t1 = time.time()
-    print('Tpo time', t1 - t0)
+    print(f'Tpo time {(t1-t0)//60//60}h {(t1-t0)//60%60}min {(t1-t0) % 60}s')
 
     return out
 
@@ -429,7 +429,7 @@ def create_Esite_matrix(VS, A, ed, ep, eo):
 
     out = sps.coo_matrix((data, (row, col)), shape=(dim, dim))
     t1 = time.time()
-    print('Esite time', t1 - t0)
+    print(f'Esite time {(t1-t0)//60//60}h {(t1-t0)//60%60}min {(t1-t0) % 60}s')
 
     return out
 
@@ -478,7 +478,7 @@ def create_tz_matrix(VS, tz_fac):
 
     out = sps.coo_matrix((data, (row, col)), shape=(dim, dim))
     t1 = time.time()
-    print('Tz time', t1 - t0)
+    print(f'Tz time {(t1-t0)//60//60}h {(t1-t0)//60%60}min {(t1-t0) % 60}s')
 
     return out
 
@@ -553,7 +553,7 @@ def get_double_occ_list(VS):
             apz_idx_pair.append((i, apz_pair))
 
     t1 = time.time()
-    print('double_occ time', t1 - t0)
+    print(f'double_occ time {(t1-t0)//60//60}h {(t1-t0)//60%60}min {(t1-t0) % 60}s')
 
     return multi_d_state_idx, multi_d_hole_idx, p_idx_pair, apz_idx_pair
 
@@ -637,7 +637,7 @@ def create_interaction_matrix_d8(VS, d_state_idx, d_hole_idx, S_val, Sz_val, A):
 
     out = sps.coo_matrix((data, (row, col)), shape=(dim, dim))
     t1 = time.time()
-    print('create_interaction_matrix_d8 time', t1-t0)
+    print(f'create_interaction_matrix_d8 time {(t1-t0)//60//60}h {(t1-t0)//60%60}min {(t1-t0) % 60}s')
 
     return out
 
@@ -675,6 +675,6 @@ def create_interaction_matrix_po(VS, p_idx_pair, apz_idx_pair, Upp, Uoo):
     out = sps.coo_matrix((data, (row, col)), shape=(dim, dim))
 
     t1 = time.time()
-    print('create_interaction_matrix_po time', t1-t0)
+    print(f'create_interaction_matrix_po time {(t1-t0)//60//60}h {(t1-t0)//60%60}min {(t1-t0) % 60}s')
 
     return out

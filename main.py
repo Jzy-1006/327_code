@@ -332,7 +332,7 @@ if __name__ == '__main__':
             U_coupled, S_val, Sz_val = basis_change.create_coupled_representation_matrix(VS)
             U_coupled_d = (U_coupled.conjugate()).transpose()
 
-        compute_Aw_main(tpd=0.5*pam.tpd_list[4], tdo=0.8295)
+        compute_Aw_main()
         # state_type_weight()
         # get_val_tpd()
         # get_val_pressure()

@@ -113,7 +113,7 @@ def create_singlet_triplet_basis_change_matrix_d8(VS, d_state_idx, d_hole_idx):
                                            row, col, data, S_d8_val, Sz_d8_val, count_list)
 
     t1 = time.time()
-    print(f'singlet_triplet_d8 basis change time {t1-t0}')
+    print(f'singlet_triplet_d8 basis change time {(t1-t0)//60//60}h, {(t1-t0)//60%60}min, {(t1-t0)%60}s')
 
     return sps.coo_matrix((data, (row, col)), shape=(dim, dim)) / np.sqrt(2), S_d8_val, Sz_d8_val
 
@@ -169,7 +169,7 @@ def create_singlet_triplet_basis_change_matrix(VS, d_state_idx, d_hole_idx, posi
                 col.append(state_idx)
 
     t1 = time.time()
-    print(f'singlet_triplet_double basis change time {t1 - t0}')
+    print(f'singlet_triplet_double basis change time {(t1-t0)//60//60}h, {(t1-t0)//60%60}min, {(t1-t0)%60}s')
 
     return sps.coo_matrix((data, (row, col)), shape=(dim, dim)) / np.sqrt(2), S_Ni_val, Sz_Ni_val
 
@@ -245,7 +245,7 @@ def create_bonding_anti_bonding_basis_change_matrix(VS):
 
     out = sps.coo_matrix((data, (row, col)), shape=(dim,dim)) / np.sqrt(2)
     t1 = time.time()
-    print('bonding_anti_boding_basis_change time', t1-t0)
+    print(f'bonding_anti_boding_basis_change time {(t1-t0)//60//60}h, {(t1-t0)//60%60}min, {(t1-t0)%60}s')
 
     return out, bonding_val
 
@@ -414,6 +414,6 @@ def create_coupled_representation_matrix(VS):
                 data.append(ph*coef)
 
     t1 = time.time()
-    print(f'coupled representation time {t1-t0}')
+    print(f'coupled representation time {(t1-t0)//60//60}h, {(t1-t0)//60%60}min, {(t1-t0)%60}s')
 
     return sps.coo_matrix((data, (row, col)), shape=(dim, dim)), S_val, Sz_val

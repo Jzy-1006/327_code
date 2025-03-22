@@ -2,12 +2,12 @@ import numpy as np
 
 # hole_num: 空穴数目, layer_num: 层数, Norb: 轨道数目
 hole_num = 8
-layer_num = 3
-max_energy = 14
+layer_num = 3   # 两层时, 最大能量可以设置为最高值
+energy_range = (0, 14)
 # Sz = 'All_Sz'时, 考虑的所有自旋的情况
 Sz_list = ['All_Sz']
 # Sz_list = [0]
-if_coupled = 1
+if_coupled = 0
 if_basis_change_type = 'd_double'
 
 Norb = 5
@@ -40,8 +40,8 @@ tz_b1b1 = 0.047
 
 if_tz_exist = 2
 if_bond = 0
-val_num = 1
-Neval = 10
+val_num = 1    # 要有足够的Neval才能计算val_num！！！
+Neval = 100
 
 if Norb == 5:
     Ni_orbs = ['dx2y2', 'd3z2r2']
