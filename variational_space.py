@@ -310,7 +310,7 @@ class VariationalSpace:
 
         lookup_tbl.sort()       # 一定要有这一步, 这会影响get_index函数
         t1 = time.time()
-        print('VS cost time', t1 - t0)
+        print(f"VS time {(t1-t0)//60//60}h, {(t1-t0)//60%60}min, {(t1-t0)%60}s")
         return lookup_tbl
 
 

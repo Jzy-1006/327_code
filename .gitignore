@@ -1,7 +1,8 @@
 data/
 venv/
 .idea/
-process_data/
+process_2layer/
+process_3layer/
 test/
 __pycache__/
 .gitignore

@@ -1,9 +1,9 @@
 import numpy as np
 
 # hole_num: 空穴数目, layer_num: 层数, Norb: 轨道数目
-hole_num = 8
-layer_num = 3   # 两层时, 最大能量可以设置为最高值
-energy_range = (0, 14)
+hole_num = 5
+layer_num = 2   # 两层时, 最大能量可以设置为最高值
+energy_range = (0, 100)     # 限制能量范围
 # Sz = 'All_Sz'时, 考虑的所有自旋的情况
 Sz_list = ['All_Sz']
 # Sz_list = [0]

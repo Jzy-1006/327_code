@@ -1,5 +1,5 @@
 # La4Ni3O10
-1. 主程序: compute.py
+1. 主程序: main.py
 2. 如何检验代码
    (1)在parameters.py文件中, 令layer_num = 2, hole_num =4, 5 or 6, 
 同时令variational_space里的max_energy = 100(目的是要计算全部的态)
@@ -15,4 +15,4 @@ hamiltonian.py中的create_Esite_matrix
    (4) 注意顺序问题, 一个是get_interaction_mat中的state_order, ('d3z2r2', 'dx2y2'), d3z2r2的字典序在dx2y2的前面;
 另外一个是由于态中空穴的排列方式带来phase(make_state_canonical函数)的问题
    (5) 另外代码还没加入dxy, dxz, dyz轨道
-   (6) hamiltonian里, 要if, elif, elif, 最后是else; 或者是if if if, 不要else
+   (6) hamiltonian里, 要if, elif, elif, 最后是else; 或者是if if if
