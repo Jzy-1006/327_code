@@ -3,6 +3,11 @@ venv/
 .idea/
 process_2layer/
 process_3layer/
+restrict_state/
+4L/
+2L/
+*.pptx
+*.zip
 test/
 __pycache__/
 .gitignore

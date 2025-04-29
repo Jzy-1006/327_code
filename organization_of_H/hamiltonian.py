@@ -1,4 +1,5 @@
 import time
+from scipy.special import comb
 import numpy as np
 import scipy.sparse as sps
 from itertools import product
@@ -170,7 +171,7 @@ def create_tpd_nn_matrix(VS, tpd_nn_hop_dir, tpd_nn_hop_fac):
         # 其中一个空穴跳跃, 其他空穴不动
         for hole_idx in range(hole_num):
             hole = state[hole_idx]
-            x, y, z, orb, s = hole
+            x, y, z, orb = hole
             # 根据轨道决定是否跳跃, 求出跳跃后的坐标
             if orb in tpd_orbs:
                 for direction in tpd_nn_hop_dir[orb]:
@@ -185,7 +186,7 @@ def create_tpd_nn_matrix(VS, tpd_nn_hop_dir, tpd_nn_hop_fac):
                         if orb12 in tpd_keys:
 
                             # 跳跃后的空穴
-                            hop_hole = (hop_x, hop_y, hop_z, hop_orb, s)
+                            hop_hole = (hop_x, hop_y, hop_z, hop_orb)
                             if hop_hole not in state:       # 检验是否满足Pauli不相容原理
                                 # 将其中的一个空穴换成是跳跃后的空穴
                                 hop_state = list(state)
@@ -202,7 +203,7 @@ def create_tpd_nn_matrix(VS, tpd_nn_hop_dir, tpd_nn_hop_fac):
     t1 = time.time()
     print(f"Tpd time {(t1-t0)//60//60}h {(t1-t0)//60%60}min {(t1-t0) % 60}s")
 
-    return out
+    return out.tocsr()
 
 
 def create_tpp_nn_matrix(VS, tpp_nn_hop_dir, tpp_nn_hop_fac):
@@ -229,7 +230,7 @@ def create_tpp_nn_matrix(VS, tpp_nn_hop_dir, tpp_nn_hop_fac):
         # 其中一个空穴跳跃, 其他空穴不动
         for hole_idx in range(hole_num):
             hole = state[hole_idx]
-            x, y, z, orb, s = hole
+            x, y, z, orb = hole
             # 根据轨道决定是否跳跃, 求出跳跃后的坐标
             if orb in pam.O_orbs:
                 for direction in tpp_nn_hop_dir:
@@ -248,7 +249,7 @@ def create_tpp_nn_matrix(VS, tpp_nn_hop_dir, tpp_nn_hop_fac):
                         if orb12 in tpp_keys:
 
                             # 跳跃后的空穴
-                            hop_hole = (hop_x, hop_y, hop_z, hop_orb, s)
+                            hop_hole = (hop_x, hop_y, hop_z, hop_orb)
                             if hop_hole not in state:       # 检验是否满足Pauli不相容原理
                                 # 将其中的一个空穴换成是跳跃后的空穴
                                 hop_state = list(state)
@@ -265,7 +266,7 @@ def create_tpp_nn_matrix(VS, tpp_nn_hop_dir, tpp_nn_hop_fac):
     t1 = time.time()
     print(f'Tpp time {(t1-t0)//60//60}h {(t1-t0)//60%60}min {(t1-t0) % 60}s')
 
-    return out
+    return out.tocsr()
 
 
 def create_tdo_nn_matrix(VS, tdo_nn_hop_dir, tdo_nn_hop_fac):
@@ -292,7 +293,7 @@ def create_tdo_nn_matrix(VS, tdo_nn_hop_dir, tdo_nn_hop_fac):
         # 其中一个空穴跳跃, 其他空穴不动
         for hole_idx in range(hole_num):
             hole = state[hole_idx]
-            x, y, z, orb, s = hole
+            x, y, z, orb = hole
             # 根据轨道决定是否跳跃, 求出跳跃后的坐标
             if orb in tdo_orbs:
                 for direction in tdo_nn_hop_dir[orb]:
@@ -307,7 +308,7 @@ def create_tdo_nn_matrix(VS, tdo_nn_hop_dir, tdo_nn_hop_fac):
                         if orb12 in tdo_keys:
 
                             # 跳跃后的空穴
-                            hop_hole = (hop_x, hop_y, hop_z, hop_orb, s)
+                            hop_hole = (hop_x, hop_y, hop_z, hop_orb)
                             if hop_hole not in state:  # 检验是否满足Pauli不相容原理
                                 # 将其中的一个空穴换成是跳跃后的空穴
                                 hop_state = list(state)
@@ -324,7 +325,7 @@ def create_tdo_nn_matrix(VS, tdo_nn_hop_dir, tdo_nn_hop_fac):
     t1 = time.time()
     print(f'Tdo time {(t1-t0)//60//60}h {(t1-t0)//60%60}min {(t1-t0) % 60}s')
 
-    return out
+    return out.tocsr()
 
 
 def create_tpo_nn_matrix(VS, tpo_nn_hop_dir, tpo_nn_hop_fac):
@@ -351,7 +352,7 @@ def create_tpo_nn_matrix(VS, tpo_nn_hop_dir, tpo_nn_hop_fac):
         # 其中一个空穴跳跃, 其他空穴不动
         for hole_idx in range(hole_num):
             hole = state[hole_idx]
-            x, y, z, orb, s = hole
+            x, y, z, orb = hole
             # 根据轨道决定是否跳跃, 求出跳跃后的坐标
             if orb in tpo_orbs:
                 for direction in tpo_nn_hop_dir[orb]:
@@ -366,7 +367,7 @@ def create_tpo_nn_matrix(VS, tpo_nn_hop_dir, tpo_nn_hop_fac):
                         if orb12 in tpo_keys:
 
                             # 跳跃后的空穴
-                            hop_hole = (hop_x, hop_y, hop_z, hop_orb, s)
+                            hop_hole = (hop_x, hop_y, hop_z, hop_orb)
                             if hop_hole not in state:  # 检验是否满足Pauli不相容原理
                                 # 将其中的一个空穴换成是跳跃后的空穴
                                 hop_state = list(state)
@@ -383,7 +384,7 @@ def create_tpo_nn_matrix(VS, tpo_nn_hop_dir, tpo_nn_hop_fac):
     t1 = time.time()
     print(f'Tpo time {(t1-t0)//60//60}h {(t1-t0)//60%60}min {(t1-t0) % 60}s')
 
-    return out
+    return out.tocsr()
 
 
 def create_Esite_matrix(VS, A, ed, ep, eo):
@@ -398,14 +399,14 @@ def create_Esite_matrix(VS, A, ed, ep, eo):
     """
     t0 = time.time()
     dim = VS.dim
-    data = []
-    row = []
-    col = []
+    diag_onsite = []
+    diag_dn = []
+
     for row_idx in range(dim):
         state = vs.get_state(VS.lookup_tbl[row_idx])
-        diag_el = 0.
         Ni_num = {position: 0 for position in lat.Ni_position}
-        for x, y, z, orb, _ in state:
+        diag_el = 0
+        for x, y, z, orb in state:
             # 计算d, p, apz轨道上的在位能
             if orb in pam.Ni_orbs:
                 diag_el += ed[orb]
@@ -418,16 +419,25 @@ def create_Esite_matrix(VS, A, ed, ep, eo):
             if orb in pam.Ni_orbs:
                 Ni_num[(x, y, z)] += 1
 
+        diag_onsite.append(diag_el)
+
         # dn(n != 8)的能量, 比d8高A/2 * abs(n - 8)
         for num in Ni_num.values():
-            if num != 2:
-                diag_el += A + A / 2 * abs(num - 2)
+            diag_dn.append(num)
 
-        data.append(diag_el)
-        row.append(row_idx)
-        col.append(row_idx)
+    # 创建
+    diag_onsite = np.array(diag_onsite)
+    I = np.ones(dim)
+    diag_onsite = np.kron(diag_onsite, I) + np.kron(I, diag_onsite)
 
-    out = sps.coo_matrix((data, (row, col)), shape=(dim, dim))
+    diag_dn = np.array(diag_dn)
+    diag_dn = diag_dn.reshape(-1, len(lat.Ni_position))
+    I = np.ones((dim, 1))
+    diag_dn = np.kron(diag_dn, I) + np.kron(I, diag_dn)
+    diag_dn = (diag_dn != 2) * A + abs(diag_dn - 2) * A / 2
+    diag_dn = diag_dn.sum(axis=1)
+
+    out = sps.diags(diag_onsite+diag_dn, format='csr')
     t1 = time.time()
     print(f'Esite time {(t1-t0)//60//60}h {(t1-t0)//60%60}min {(t1-t0) % 60}s')
 
@@ -460,10 +470,10 @@ def create_tz_matrix(VS, tz_fac):
         # 其中一个空穴跳跃, 其他空穴不动
         for hole_idx in range(hole_num):
             hole = state[hole_idx]
-            x, y, z, orb, s = hole
+            x, y, z, orb = hole
             if z in z_list and (orb, orb) in tz_keys:     # 夹层并且满足选定的轨道
                 hop_z = z - 2   # 往下一层
-                hop_hole = (x, y, hop_z, orb, s)
+                hop_hole = (x, y, hop_z, orb)
                 if hop_hole not in state:       # 是否符合Pauli不相容原理
                     # 将其中的一个空穴换成是跳跃后的空穴
                     hop_state = list(state)
@@ -480,201 +490,206 @@ def create_tz_matrix(VS, tz_fac):
     t1 = time.time()
     print(f'Tz time {(t1-t0)//60//60}h {(t1-t0)//60%60}min {(t1-t0) % 60}s')
 
-    return out
+    return out.tocsr()
 
 
 def get_double_occ_list(VS):
     """
     找出态中有两个空穴是在同一位置
     :param VS: 态空间
-    :return: multi_d_state_idx = {Ni0位置: [state_idx1, state_idx2, ....]...}
-    multi_d_hole_idx, {Ni0位置: [state_idx1, state_idx2, ...]...}
-    p_idx_pair, [(p_idx, p_pair)...]
-    apz_idx_pair, [(apz_idx, apz_pair)...]
+    :return: d_idx, p_idx, apz_idx
     """
     t0 = time.time()
-    multi_d_state_idx = {}
-    multi_d_hole_idx = {}
-    p_idx_pair = []
-    apz_idx_pair = []
-
     dim = VS.dim
-    # 遍历整个态空间
-    for i in range(dim):
-        state = vs.get_state(VS.lookup_tbl[i])
-        # 统计在相同Ni上空穴的索引和在相同O上空穴数目
-        Ni_idx = {}
-        O_num = {}      # 相同层间O上空穴数目
-        Oap_num = {}        #相同层内O上空穴数目
-        hole_num = len(state)
-        for hole_idx in range(hole_num):
-            x, y, z, orb, s = state[hole_idx]
-            if orb in pam.Ni_orbs:
-                if (x, y, z) in Ni_idx:
-                    Ni_idx[(x, y, z)] += [hole_idx]
-                else:
-                    Ni_idx[(x, y, z)] = [hole_idx]
-            elif orb in pam.O_orbs:
-                if (x, y, z) in O_num:
-                    O_num[(x, y, z)] += 1
-                else:
-                    O_num[(x, y, z)] = 1
-            else:
-                if (x, y, z) in Oap_num:
-                    Oap_num[(x, y, z)] += 1
-                else:
-                    Oap_num[(x, y, z)] = 1
 
-        # 记录在Ni上的空穴数目是2的态索引和空穴索引
-        for position, idx_list in Ni_idx.items():
-            Ni_num = len(idx_list)
-            if Ni_num == 2:
-                if position in multi_d_state_idx:
-                    multi_d_state_idx[position] += [i]
-                    multi_d_hole_idx[position] += [idx_list]
-                else:
-                    multi_d_state_idx[position] = [i]
-                    multi_d_hole_idx[position] = [idx_list]
+    Ni_position = lat.Ni_position
+    Ni_num = len(Ni_position)
+    d_idx = {(i, if_dz2, if_dx2): [] for i in range(Ni_num)
+             for if_dz2, if_dx2 in [(0, 0), (1, 0), (0, 1), (1, 1)]}
+    for i, position in enumerate(Ni_position):
+        for j in range(dim):
+            state = vs.get_state(VS.lookup_tbl[j])
+            if_dx2 = 0
+            if_dz2 = 0
+            for x, y, z, orb in state:
+                if (x, y, z) == position:
+                    if orb == 'd3z2r2':
+                        if_dz2 = 1
+                    elif orb == 'dx2y2':
+                        if_dx2 = 1
+            d_idx[(i, if_dz2, if_dx2)].append(j)
 
-        # 记录在层内O上空穴数目大于1的态索引和空穴对
-        p_pair = 0
-        for num in O_num.values():
-            if num > 1:
-                p_pair += num * (num - 1) / 2
-        if p_pair > 0:
-            p_idx_pair.append((i, p_pair))
+    p_idx = {}
+    O_position = lat.O_position
+    for i, position in enumerate(O_position):
+        point = 0
+        for j in range(dim):
+            state = vs.get_state(VS.lookup_tbl[j])
+            for x, y, z, _ in state:
+                if (x, y, z) == position:
+                    p_idx[i, point] = j
+                    point += 1
+                    break
 
-        # 记录在层间O上空穴数目大于1的
-        apz_pair = 0
-        for num in Oap_num.values():
-            if num > 1:
-                apz_pair += num * (num - 1) / 2
-        if apz_pair > 0:
-            apz_idx_pair.append((i, apz_pair))
+    apz_idx = {}
+    Oap_position = lat.Oap_position
+    for i, position in enumerate(Oap_position):
+        point = 0
+        for j in range(dim):
+            state = vs.get_state(VS.lookup_tbl[j])
+            for x, y, z, _ in state:
+                if (x, y, z) == position:
+                    apz_idx[i, point] = j
+                    point += 1
+                    break
+
 
     t1 = time.time()
     print(f'double_occ time {(t1-t0)//60//60}h {(t1-t0)//60%60}min {(t1-t0) % 60}s')
 
-    return multi_d_state_idx, multi_d_hole_idx, p_idx_pair, apz_idx_pair
+    return d_idx, p_idx, apz_idx
 
 
-def create_interaction_matrix_d8(VS, d_state_idx, d_hole_idx, S_val, Sz_val, A):
+def create_interaction_matrix_d8(VS, d_idx, A):
     """
     设置d8相互作用矩阵
     :param VS:
-    :param d_state_idx: (state_idx1, state_idx2, ...)
-    :param d_hole_idx: ([hole_idx1, hole_idx2, ...], ....)
-    :param S_val: {state_idx1: S1, ...}
-    :param Sz_val: {state_idx1: Sz1, ...}
+    :param d_idx:
     :param A:
     :return: out
     """
     t0 = time.time()
+    B = pam.B
+    C = pam.C
+    dim = VS.dim
     data = []
     row = []
     col = []
-    dim = VS.dim
-    # Ni轨道的所有可能组合
-    exist_orb34 = product(pam.Ni_orbs, repeat=2)
-    exist_orb34 = tuple(exist_orb34)
 
-    # 遍历所求对称性
-    channels = ('1A1', '1B1', '3B1')
-    for sym in channels:
-        Stot, Sz_set, state_order, interaction_mat = get_interaction_mat(A, sym)
-        for i, state_idx in enumerate(d_state_idx):
-            count = []      # 避免重复计算
-            state = vs.get_state(VS.lookup_tbl[state_idx])
-            # 提取d8的两个空穴轨道, S12和Sz12
-            hole_idx1, hole_idx2 = d_hole_idx[i]
-            orb1 = state[hole_idx1][-2]
-            orb2 = state[hole_idx2][-2]
-            orb1, orb2 = sorted([orb1, orb2])
-            orb12 = (orb1, orb2)
-            S12 = S_val[state_idx]
-            Sz12 = Sz_val[state_idx]
+    S_val = {}
+    Sz_val = {}
+    # 1.d8相互作用
+    # 1A1, S = 0, Sz = 0
+    for i in d_idx[(1, 0)]:
+        for j in d_idx[(1, 0)]:
+            r = i * dim + j
+            data.append(A + 4 * B + 3 * C)
+            row.append(r)
+            col.append(r)
 
-            # 判断轨道, S12, Sz12是否满足要求
-            if orb12 not in state_order.keys() or S12 != Stot or Sz12 not in Sz_set:
-                continue
+            S_val[r] = 0
+            Sz_val[r] = 0
 
-            # 得出interaction_mat的行索引
-            mat_idx1 = state_order[orb12]
-            # 遍历interaction_mat的列, 同时对应state_order.keys()
-            for mat_idx2, orb34 in enumerate(state_order.keys()):
-                if orb34 not in exist_orb34:
-                    continue
+    for i in d_idx[(0, 1)]:
+        for j in d_idx[(0, 1)]:
+            r = i * dim + j
+            data.append(A + 4 * B + 3 * C)
+            row.append(r)
+            col.append(r)
 
-                # 生成相互作用的另一个态, 并找出对应的索引
-                # 先生成新的d8对应的两个空穴
-                for s1 in ['dn', 'up']:
-                    for s2 in ['dn', 'up']:
-                        if (orb34[0], s1) == (orb34[1], s2):      # 检查是否满足Pauli不相容原理
-                            continue
-                        hole1 = state[hole_idx1][:3] + (orb34[0], s1)
-                        hole2 = state[hole_idx2][:3] + (orb34[1], s2)
+            S_val[r] = 0
+            Sz_val[r] = 0
 
-                        # 将state列表化, 并将其中的两个空穴替换成新的d8
-                        inter_state = list(state)
-                        inter_state[hole_idx1], inter_state[hole_idx2] = hole1, hole2
-                        inter_state, _ = vs.make_state_canonical(inter_state)
+    for i1_idx, i in enumerate(d_idx[(1, 0)]):
+        i1 = d_idx[(0, 1)][i1_idx]
+        for j1_idx, j in enumerate(d_idx[(1, 0)]):
+            j1 = d_idx[(0, 1)][j1_idx]
+            r1 = i * dim + j
+            r2 = i1 * dim + j1
+            data.extend([4 * B + C, 4 * B + C])
+            row.extend([r1, r2])
+            col.extend([r2, r1])
 
-                        # 找到相互作用态的索引
-                        inter_idx = VS.get_index(inter_state)
-                        if inter_idx is None or inter_idx in count:
-                            continue
-                        # 判断新的d8对应的S34, Sz34是否满足要求
-                        S34, Sz34 = S_val[inter_idx], Sz_val[inter_idx]
-                        if S34 != S12 or Sz34 != Sz12:
-                            continue
+            S_val[r] = 0
+            Sz_val[r] = 0
 
-                        # 利用mat_idx1和mat_idx找出矩阵值
-                        value = interaction_mat[mat_idx1][mat_idx2]
-                        data.append(value)
-                        row.append(state_idx)
-                        col.append(inter_idx)
-                        count.append(inter_idx)
+    # 1B1和3B1, S=1, Sz=0
+    for i in d_idx[(1, 0)]:
+        for j in d_idx[0, 1]:
+            # 1B1, S = 0, Sz = 0
+            r = j * dim + i
+            data.append(A+2*C)
+            row.append(r)
+            col.append(r)
 
-    out = sps.coo_matrix((data, (row, col)), shape=(dim, dim))
+            S_val[r] = 0
+            Sz_val[r] = 0
+            # 3B1, S=1, Sz=0
+            r = i * dim + j
+            data.append(A-8*B)
+            row.append(r)
+            col.append(r)
+
+            S_val[r] = 1
+            Sz_val[r] = 0
+
+    # 3B1, Sz=1, Sz=-1
+    for i in d_idx[(1, 1)]:
+        for j in d_idx[(0, 0)]:
+            # Sz = 1
+            r = i * dim + j
+            data.append(A - 8 * B)
+            row.append(r)
+            col.append(r)
+
+            S_val[r] = 1
+            Sz_val[r] = 1
+            # Sz = -1
+            r = j * dim + i
+            data.append(A - 8 * B)
+            row.append(r)
+            col.append(r)
+
+            S_val[r] = 1
+            Sz_val[r] = -1
+
+    out = sps.coo_matrix((data, (row, col)), shape=(dim*dim, dim*dim))
     t1 = time.time()
     print(f'create_interaction_matrix_d8 time {(t1-t0)//60//60}h {(t1-t0)//60%60}min {(t1-t0) % 60}s')
 
-    return out
+    return out.tocsr(), S_val, Sz_val
 
 
-def create_interaction_matrix_po(VS, p_idx_pair, apz_idx_pair, Upp, Uoo):
+def create_interaction_matrix_po(VS, p_idx, apz_idx, Upp, Uoo):
     """
-    设置p, pz轨道的相互作用, Uoo, Upp
+    设置p, pz轨道的相互作用
     :param VS:
-    :param p_idx_pair: [(p_idx1, p_pair1), ...]
-    :param apz_idx_pair: [(apz_idx1, apz_idx2), ...]
+    :param p_idx: [(p_idx, point): state_idx, ...]
+    :param apz_idx: [(p_idx, point): state_idx, ...]
     :param Upp: p,p轨道的相互作用
     :param Uoo: pz, pz轨道的相互作用
     :return:
     """
     t0 = time.time()
     dim = VS.dim
+    p_num = len(lat.O_position)
+    apz_num = len(lat.Oap_position)
+    orb_num = 2 * len(lat.Ni_position) + p_num + apz_num
+    hole_num = pam.hole_num
     data = []
-    row = []
-    col = []
+    diag_i = []
 
+    kl_num = comb(orb_num-1, hole_num-1, exact=True)
     # p, p轨道相互作用矩阵
     if Upp != 0:
-        for state_idx, p_pair in p_idx_pair:
-            data.append(Upp*p_pair)
-            row.append(state_idx)
-            col.append(state_idx)
+        for i in range(p_num):
+            for k in range(kl_num):
+                for l in range(kl_num):
+                    r = p_idx[i, k] * dim + p_idx[i, l]
+                    data.append(Upp)
+                    diag_i.append(r)
 
     # pz, pz轨道相互作用矩阵
     if Uoo != 0:
-        for state_idx, apz_pair in apz_idx_pair:
-            data.append(Uoo*apz_pair)
-            row.append(state_idx)
-            col.append(state_idx)
+        for i in range(apz_num):
+            for k in range(kl_num):
+                for l in range(kl_num):
+                    r = apz_idx[i, k] * dim + apz_idx[i, l]
+                    data.append(Uoo)
+                    diag_i.append(r)
 
-    out = sps.coo_matrix((data, (row, col)), shape=(dim, dim))
-
+    out = sps.coo_matrix((data, (diag_i, diag_i)), shape=(dim*dim, dim*dim))
     t1 = time.time()
     print(f'create_interaction_matrix_po time {(t1-t0)//60//60}h {(t1-t0)//60%60}min {(t1-t0) % 60}s')
 
-    return out
+    return out.tocsr()

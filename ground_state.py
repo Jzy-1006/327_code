@@ -76,7 +76,7 @@ def get_ground_state(matrix, VS, multi_S_val, multi_Sz_val, **kwargs):
                 continue
             if row['state_type'] != current_type:
                 current_type = row['state_type']
-                print(f"{current_type} = {row['type_weight']}\n")
+                print(f"{current_type} == {row['type_weight']}\n")
 
             if row['orb_type'] != current_orb_type and row['orb_type_weight'] > 1e-3:
                 current_orb_type = row['orb_type']

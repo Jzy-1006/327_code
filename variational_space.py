@@ -252,7 +252,7 @@ class VariationalSpace:
         ep = pam.ep_list[4]
         eo = pam.eo_list[4]
         # 枚举Ni的所有可能分布: (Ni0_num, Ni1_num, ...)
-        for Ni_dist in cwr((0, 1, 2, 3), Ni_num):
+        for Ni_dist in cwr((0, 1, 2, 3, 4), Ni_num):
             if sum(Ni_dist) > hole_num:
                 continue
             # 层间O的数量分布
@@ -294,6 +294,9 @@ class VariationalSpace:
                     # 如果只有一部分非空, 直接输出
                     if len(non_empty_part) == 1:
                         for state in non_empty_part[0]:
+                            if self.Sz != 'All_Sz':
+                                if get_state_Sz(state) != self.Sz:
+                                    continue
                             canonical_state, _ = make_state_canonical(state)
                             uid = get_state_uid(canonical_state)
                             lookup_tbl.append(uid)
@@ -304,6 +307,9 @@ class VariationalSpace:
                             state = part1[0]
                             for part2 in part1[1:]:
                                 state += part2
+                            if self.Sz != 'All_Sz':
+                                if get_state_Sz(state) != self.Sz:
+                                    continue
                             canonical_state, _ = make_state_canonical(state)
                             uid = get_state_uid(canonical_state)
                             lookup_tbl.append(uid)
