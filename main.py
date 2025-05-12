@@ -61,7 +61,7 @@ def compute_Aw_main(A=pam.A, Uoo=pam.Uoo, Upp=pam.Upp,
     print(f"\nA = {A}, Uoo = {Uoo}, Upp = {Upp}\ned = {ed}, ep = {ep}, eo = {eo}\n"
           f"tpd = {tpd}, tpp = {tpp}, tdo = {tdo}, tpo = {tpo}\n")
     # 变换到耦合表象
-    if Sz == 'All_Sz' and pam.if_coupled == 1:
+    if pam.if_coupled == 1:
         for _, U in multi_U_Ni.items():
             U_d = (U.conjugate()).transpose()
             H = U @ H @ U_d
@@ -328,7 +328,7 @@ if __name__ == '__main__':
             multi_S[Ni_position] = S_Ni_val
             multi_Sz[Ni_position] = Sz_Ni_val
 
-        if Sz == 'All_Sz' and pam.if_coupled == 1:
+        if pam.if_coupled == 1:
             U_coupled, S_val, Sz_val = basis_change.create_coupled_representation_matrix(VS)
             U_coupled_d = (U_coupled.conjugate()).transpose()
 

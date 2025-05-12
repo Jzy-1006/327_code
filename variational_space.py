@@ -18,6 +18,8 @@ def get_hole_uid(hole):
     b_x = 2 * pam.Mc + 1
     b_y = 2 * pam.Mc + 1
     b_z = 2 * pam.layer_num - 1
+    # position = lat.position
+    # b_position = len(position)
     b_orb = pam.Norb
     b_s = 2
 
@@ -26,6 +28,7 @@ def get_hole_uid(hole):
     i_x = x + pam.Mc
     i_y = y + pam.Mc
     i_z = z
+    # i_position = position.index((x, y, z))
     # 轨道和自旋转为数字
     i_orb = lat.orb_int[orb]
     i_s = lat.spin_int[s]
@@ -34,6 +37,8 @@ def get_hole_uid(hole):
     hole_uid = 0
     b_list = [b_s, b_orb, b_y, b_x, b_z]
     i_list = [i_s, i_orb, i_y, i_x, i_z]
+    # b_list = [b_s, b_orb, b_position]
+    # i_list = [i_s, i_orb, i_position]
     b = 1
     for idx in range(len(i_list)):
         i = i_list[idx]
@@ -54,6 +59,8 @@ def get_hole(hole_uid):
     b_x = 2 * pam.Mc + 1
     b_y = 2 * pam.Mc + 1
     b_z = 2 * pam.layer_num - 1
+    # position = lat.position
+    # b_position = len(position)
     b_orb = pam.Norb
     b_s = 2
 
@@ -68,12 +75,14 @@ def get_hole(hole_uid):
     i_x = hole_uid % b_x
     hole_uid //= b_x
     i_z = hole_uid % b_z
+    # i_position = hole_uid % b_position
 
     # 将这些数转为对应的空穴信息 hole = (x, y, z, orb, s)
     # i_x, i_y减去pam.Mc
     x = i_x - pam.Mc
     y = i_y - pam.Mc
     z = i_z
+    # x, y, z = position[i_position]
     # 得到轨道和自旋信息
     orb = lat.int_orb[i_orb]
     s = lat.int_spin[i_s]

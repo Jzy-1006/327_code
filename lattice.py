@@ -19,8 +19,10 @@ O1_position = [(x, y, z) for x, y in O1_xy for z in range(0, 2*pam.layer_num-1, 
 O2_xy = [(0, 1), (0, -1)]
 O2_position = [(x, y, z) for x, y in O2_xy for z in range(0, 2*pam.layer_num-1, 2)]
 O_position = O1_position + O2_position
+O_position.sort()
 
 Oap_position = [(0, 0, z) for z in range(1, 2*pam.layer_num-2, 2)]
+position = Ni_position + O_position + Oap_position
 
 def get_unit_cell_rep(x, y, z):
     """

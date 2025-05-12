@@ -439,7 +439,7 @@ def create_Esite_matrix(VS, A, ed, ep, eo):
 
     out = sps.diags(diag_onsite+diag_dn, format='csr')
     t1 = time.time()
-    print(f'Esite time {(t1-t0)//60//60}h {(t1-t0)//60%60}min {(t1-t0) % 60}s')
+    print(f'Esite time {(t1-t0)//60//60}h {(t1-t0)//60%60}min {(t1-t0) % 60}s\n')
 
     return out
 
@@ -545,7 +545,7 @@ def get_double_occ_list(VS):
 
 
     t1 = time.time()
-    print(f'double_occ time {(t1-t0)//60//60}h {(t1-t0)//60%60}min {(t1-t0) % 60}s')
+    print(f'double_occ time {(t1-t0)//60//60}h {(t1-t0)//60%60}min {(t1-t0) % 60}s\n')
 
     return d_idx, p_idx, apz_idx
 

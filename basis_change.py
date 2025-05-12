@@ -8,6 +8,7 @@ from sympy.physics.quantum.cg import CG
 import lattice as lat
 import variational_space as vs
 import hamiltonian as ham
+import parameters as pam
 
 
 def set_singlet_triplet_matrix_element(VS, state_idx, hole_idx1, hole_idx2,
@@ -277,7 +278,7 @@ def coupling_representation(j1_list, j2_list, j1m1_list, j2m2_list, expand1_list
             for j in j_list:
                 cou_j_list.append(j)
 
-                # 2. 计算耦合磁量子数m
+                # 2. 计算耦合磁量子数m.
                 for m in np.arange(-j, j + 1):
                     expand = {}
 
@@ -369,6 +370,10 @@ def create_coupled_representation_matrix(VS):
             j_list, jm_list, expand_list = coupling_representation(j_list, j1_list, jm_list, j1m1_list,
                                                                        expand_list, expand1_list)
         # 调整展开式的顺序, 按照m, j升序排列
+        if pam.Sz_list[0] != 'All_Sz':
+            jm_idx = [i for i in range(len(jm_list)) if float(jm_list[i][1]) == pam.Sz_list[0]]
+            jm_list = [jm_list[i] for i in jm_idx]
+            expand_list = [expand_list[i] for i in jm_idx]
         sorted_jm_idx = sorted(range(len(jm_list)), key=lambda i: (jm_list[i][1], jm_list[i][0]))
         jm_list = [jm_list[i] for i in sorted_jm_idx]
         expand_list = [expand_list[i] for i in sorted_jm_idx]
@@ -388,6 +393,9 @@ def create_coupled_representation_matrix(VS):
                     sz_val.append(-half)
                 hole_idx = idx_list[s_idx]
                 partner_state[hole_idx][-1] = sz
+            if pam.Sz_list[0] != 'All_Sz':
+                if sz_tot != pam.Sz_list[0]:
+                    continue
             partner_state = [tuple(hole) for hole in partner_state]
             partner_state, ph = vs.make_state_canonical(partner_state)
             i_partner = VS.get_index(partner_state)

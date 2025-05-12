@@ -1,14 +1,10 @@
-import pandas as pd
 import time
 import numpy as np
-import scipy.sparse as sps
-import scipy.sparse.linalg
+from collections import Counter, defaultdict
 
 import parameters as pam
 import variational_space as vs
 import lattice as lat
-from collections import defaultdict
-# from memory_profiler import profile
 
 
 def get_state(istate, VS):
@@ -30,6 +26,50 @@ def get_state(istate, VS):
     return state
 
 
+def get_position_orb_uid(istate, VS):
+    """
+    得到将位置轨道进行排序后的uid
+    :param istate:
+    :param VS:
+    :return:
+    """
+    dim = VS.dim
+    iup = istate // dim
+    idn = istate % dim
+    uid_up, uid_dn = VS.lookup_tbl[iup], VS.lookup_tbl[idn]
+    if uid_up == uid_dn:
+        return None
+    b_hole = len(lat.position) * pam.Norb
+
+    uids = []
+    while uid_up:
+        uid = uid_up % b_hole
+        uids.append(uid)
+        uid_up //= b_hole
+    while uid_dn:
+        uid = uid_dn % b_hole
+        uids.append(uid)
+        uid_dn //= b_hole
+    double = []
+    single = []
+    for uid, same_num in Counter(uids).items():
+        if same_num > 1:
+            double.append(uid)
+        else:
+            single.append(uid)
+
+    double.sort()
+    single.sort()
+    double_uid = 0
+    single_uid = 0
+    for idx, uid in enumerate(double):
+        double_uid += uid * (b_hole ** idx)
+    for idx, uid in enumerate(single):
+        single_uid += uid * (b_hole ** idx)
+
+    return double_uid, single_uid
+
+
 def get_ground_state(VS, vals, vecs, S_vals, Sz_vals, **kwargs):
     """
     求解矩阵的本征值和本征向量, 并对求解结果进行整理
@@ -41,7 +81,6 @@ def get_ground_state(VS, vals, vecs, S_vals, Sz_vals, **kwargs):
     :return:
     """
     t0 = time.time()
-    dim = VS.dim
     print('lowest eigenvalue of H from np.linalg.eigsh = ')
     print(vals)
 
@@ -55,11 +94,12 @@ def get_ground_state(VS, vals, vecs, S_vals, Sz_vals, **kwargs):
                 degen_idx.append(idx)
                 break
 
+    coupled_uid = set()
     for i in range(val_num):
         print(f'Degeneracy of {i}th state is {degen_idx[i + 1] - degen_idx[i]}')
         print('val = ', vals[degen_idx[i]])
         weight_average = np.average(abs(vecs[:, degen_idx[i]:degen_idx[i + 1]]) ** 2, axis=1)
-        ilead = np.argsort(-weight_average)
+        ilead = np.argsort(-weight_average).astype(np.int32)
         dL_weights = defaultdict(float)
         dL_orb_weights = defaultdict(lambda: defaultdict(float))
         dL_orb_i = defaultdict(lambda: defaultdict(list))
@@ -89,6 +129,12 @@ def get_ground_state(VS, vals, vecs, S_vals, Sz_vals, **kwargs):
                 print(f"{orb_type} : {orb_weight}\n")
                 istates = dL_orb_i[dL][orb_type]
                 for istate in istates:
+                    # 只对dL_weight > 0.05的态进行耦合变换
+                    if pam.if_save_coupled_uid and i == 0 and dL_weight > 0.05:
+                        uid = get_position_orb_uid(istate, VS)
+                        if uid is not None:
+                            coupled_uid.add(uid)
+
                     state = get_state(istate, VS)
                     weight = weight_average[istate]
 
@@ -118,7 +164,8 @@ def get_ground_state(VS, vals, vecs, S_vals, Sz_vals, **kwargs):
                     # 打印输出
                     print(f"\t{state_string}\n\t{other_string}\n\tweight = {weight}\n")
 
+    with open("coupled_uid", 'w') as file:
+        for double_uid, single_uid in coupled_uid:
+            file.write(f"{double_uid}, {single_uid}\n")
     t1 = time.time()
     print(f'gs time {(t1-t0)//60//60}h, {(t1-t0)//60%60}min, {(t1-t0)%60}s\n')
-
-    # return vals, select_df

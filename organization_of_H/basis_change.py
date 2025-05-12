@@ -1,13 +1,15 @@
 import time
 import numpy as np
 import scipy.sparse as sps
-from itertools import product
+from itertools import product, combinations
+from bisect import bisect_left
+from collections import defaultdict
 from sympy import Rational
 from sympy.physics.quantum.cg import CG
 
 import lattice as lat
 import variational_space as vs
-import hamiltonian as ham
+import parameters as pam
 
 
 def set_singlet_triplet_matrix_element(VS, state_idx, hole_idx1, hole_idx2,
@@ -341,42 +343,81 @@ def create_coupled_representation_matrix(VS):
     j1m1_list = [(half, -half), (half, half)]
     expand1_list = [{(-half,): 1}, {(half,): 1}]
 
-    row = []
-    col = []
-    data = []
+    dim = VS.dim
+    row = list(range(dim*dim))
+    col = list(range(dim*dim))
+    data = [1.0] * (dim * dim)
     S_val = {}
     Sz_val = {}
-    count_list = [] # 找到对应的2 ** n态, 记录下来, 当遍历到这2 ** n态后, 直接跳过
 
-    # 遍历态空间
-    dim = VS.dim
-    for istate in range(dim):
-        if istate in count_list:
-            continue
-        state = vs.get_state(VS.lookup_tbl[istate])
+    # 1. 读取coupled_uid文件中需要耦合变换的uid
+    b_hole = len(lat.position) * pam.Norb
+    coupled_istate = defaultdict(list)
+    with open("coupled_uid", 'r') as file:
+        for line in file:
+            # double, single分别表示在同一个空穴上的数目是2, 1
+            double_uid, single_uid = line.split(',')
+            double_uid = int(double_uid.strip())
+            single_uid = int(single_uid.strip())
+            # 提取double_uid和single_uid每个进制上的hole_uid
+            double_hole_uids = set()
+            single_hole_uids = set()
+            while double_uid:
+                hole_uid = double_uid % b_hole
+                double_hole_uids.add(hole_uid)
+                double_uid //= b_hole
+            while single_uid:
+                hole_uid = single_uid % b_hole
+                single_hole_uids.add(hole_uid)
+                single_uid //= b_hole
 
-        # 1.遍历态, 找到(x, y, z, orb)不同的部分, 记录空穴索引
-        idx_dict = {}
-        for hole_idx, hole in enumerate(state):
-            x, y, z, orb, _ = hole
-            if (x, y, z, orb) in idx_dict:
-                del idx_dict[(x, y, z, orb)]
-            else:
-                idx_dict[(x, y, z, orb)] = hole_idx
-        idx_list = [value for value in idx_dict.values()]
-        idx_list.sort()
+            # 单占据的个数
+            single_num = len(single_hole_uids)
+            # 选定一个标准的位置轨道顺序
+            canonical_pos_orb_uids = sorted(single_hole_uids)
 
-        # 2.确定要耦合的空穴数目, 生成耦合表象在非耦合表象下的展开式
-        coupled_num = len(idx_list)
-        # 若要耦合的空穴数目小于2, 则不需要耦合
-        if coupled_num < 2:
-            data.append(1.)
-            row.append(istate)
-            col.append(istate)
-            continue
+            # 由标准的位置轨道顺序, 找到其他所有可能组合, 存储为coupled_group = {自旋朝向的分布ss: 态索引istate}
+            coupled_group = {}
+            for single_up_uids in combinations(canonical_pos_orb_uids, int(single_num/2)):
+                up_uids = set(single_up_uids) | double_hole_uids
+                dn_uids = single_hole_uids - set(single_up_uids) | double_hole_uids
+                up_uids = list(up_uids)
+                up_uids.sort()
+                dn_uids = list(dn_uids)
+                dn_uids.sort()
+                # 将空穴uid按进制b_hole, 转为只用一个数字存储
+                up_uid = 0
+                dn_uid = 0
+                for idx, hole_uid in enumerate(up_uids):
+                    up_uid += hole_uid * (b_hole ** idx)
+                for idx, hole_uid in enumerate(dn_uids):
+                    dn_uid += hole_uid * (b_hole ** idx)
+                # 根据VS中态的查询列表lookup_tbl, 找到对应的索引
+                iup = bisect_left(VS.lookup_tbl, up_uid)
+                idn = bisect_left(VS.lookup_tbl, dn_uid)
+                istate = iup * dim + idn
 
-        state = [list(hole) for hole in state]  # 将元组改为列表, 方便修改
+                # 自旋朝向分布
+                ss = []
+                for pos_orb_uid in canonical_pos_orb_uids:
+                    s = half if pos_orb_uid in up_uids else -half
+                    ss.append(s)
+                ss = tuple(ss)
 
+                ph = 1
+                hole_uids = up_uids + dn_uids
+                uid_num = len(hole_uids)
+                for i in range(1, uid_num):
+                    behind_uid = hole_uids[i]
+                    for front_uid in hole_uids[:i]:
+                        if front_uid > behind_uid:
+                            ph *= -1
+                coupled_group[ss] = (istate, ph)
+                data[istate] = 0.
+            coupled_istate[single_num].append(coupled_group)
+
+    for coupled_num, coupled_groups in coupled_istate.items():
+        # 2.根据耦合的空穴数目, 生成耦合表象在非耦合表象下的展开式
         j_list = j1_list
         jm_list = j1m1_list
         expand_list = expand1_list
@@ -384,51 +425,34 @@ def create_coupled_representation_matrix(VS):
             j_list, jm_list, expand_list = coupling_representation(j_list, j1_list, jm_list, j1m1_list,
                                                                        expand_list, expand1_list)
         # 调整展开式的顺序, 按照m, j升序排列
+        jm_idx = [i for i in range(len(jm_list)) if float(jm_list[i][1]) == 0]
+        jm_list = [jm_list[i] for i in jm_idx]
+        expand_list = [expand_list[i] for i in jm_idx]
+
         sorted_jm_idx = sorted(range(len(jm_list)), key=lambda i: (jm_list[i][1], jm_list[i][0]))
         jm_list = [jm_list[i] for i in sorted_jm_idx]
         expand_list = [expand_list[i] for i in sorted_jm_idx]
 
-        # 3.根据耦合的空穴数目n, 找到固定(x, y, z, orb)所对应的2 ** n种态以及相位
-        partner_dict = {}
-        for sz_tuple in product(['up', 'dn'], repeat=coupled_num):
-            partner_state = state
-            sz_tot = 0
-            sz_val = []
-            for s_idx, sz in enumerate(sz_tuple):
-                if sz == 'up':
-                    sz_tot += 1/2
-                    sz_val.append(half)
-                else:
-                    sz_tot -= 1/2
-                    sz_val.append(-half)
-                hole_idx = idx_list[s_idx]
-                partner_state[hole_idx][-1] = sz
-            partner_state = [tuple(hole) for hole in partner_state]
-            partner_state, ph = vs.make_state_canonical(partner_state)
-            i_partner = VS.get_index(partner_state)
-            count_list.append(i_partner)
-            sz_val = tuple(sz_val)
-            partner_dict[sz_val] = (sz_tot, i_partner, ph)
+        # 3.设置耦合变换的矩阵元
+        for coupled_group in coupled_groups:
+            row_idxs = [istate for istate, _ in coupled_group.values()]
+            row_idxs.sort()
+            for jm_idx, expand in enumerate(expand_list):
+                j, m = jm_list[jm_idx]
+                row_idx = row_idxs[jm_idx]
+                S_val[row_idx] = j
+                Sz_val[row_idx] = m
 
-        partner_list = [partner for partner in partner_dict.values()]
-        partner_list.sort()
+                for factor, coef in expand.items():
+                    coef = float(coef)
+                    col_idx, ph = coupled_group[factor]
 
-        # 4.设置耦合变换的矩阵元
-        for jm_idx, expand in enumerate(expand_list):
-            j, m = jm_list[jm_idx]
-            col_idx = partner_list[jm_idx][1]
-            S_val[col_idx] = j
-            Sz_val[col_idx] = m
+                    row.append(row_idx)
+                    col.append(col_idx)
+                    data.append(ph*coef)
 
-            for factor, coef in expand.items():
-                coef = float(coef)
-                row_idx, ph = partner_dict[factor][1:]
-
-                row.append(row_idx)
-                col.append(col_idx)
-                data.append(ph*coef)
-
+    out = sps.coo_matrix((data, (row, col)), shape=(dim*dim, dim*dim))
     t1 = time.time()
-    print(f'coupled representation time {(t1-t0)//60//60}h, {(t1-t0)//60%60}min, {(t1-t0)%60}s')
+    print(f'coupled representation time {(t1-t0)//60//60}h, {(t1-t0)//60%60}min, {(t1-t0)%60}s\n')
 
-    return sps.coo_matrix((data, (row, col)), shape=(dim, dim)), S_val, Sz_val
+    return out, S_val, Sz_val

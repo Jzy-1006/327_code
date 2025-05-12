@@ -69,29 +69,32 @@ def compute_Aw_main(A=pam.A, Uoo=pam.Uoo, Upp=pam.Upp,
     del U_Ni, Hint, S_val, Sz_val
 
     Hint_po = ham.create_interaction_matrix_po(VS, p_idx, apz_idx, Upp, Uoo)
+    print()
     H = H + Hint_po
     del Hint_po
+
+    # 变换到耦合表象
+    if pam.if_coupled:
+        for i in range(Ni_num):
+            di_idx = {key[1:]: item for key, item in d_idx.items() if key[0] == i}
+            U_Ni = basis_change.create_singlet_triplet_basis_change_matrix_d8(VS, di_idx)
+            H = U_Ni.T @ H @ U_Ni
+        U_coupled, S_val, Sz_val = basis_change.create_coupled_representation_matrix(VS)
+        H = U_coupled @ H @ U_coupled.T
 
     t2 = time.time()
     print(f"build H time: {(t2 - t1) // 60 // 60}h, {(t2 - t1) // 60 % 60}min, {(t2 - t1) % 60}s\n")
     print(f"A = {A}, Uoo = {Uoo}, Upp = {Upp}\ned = {ed}, ep = {ep}, eo = {eo}\n"
           f"tpd = {tpd}, tpp = {tpp}, tdo = {tdo}, tpo = {tpo}\n")
-
-    # 变换到耦合表象
-    # if Sz == 'All_Sz' and pam.if_coupled == 1:
-    #     for _, U in multi_U_Ni.items():
-    #         U_d = (U.conjugate()).transpose()
-    #         H = U @ H @ U_d
-    #     H_coupled = U_coupled_d @ H @ U_coupled
-    #     vals, df = gs.get_ground_state(H_coupled, VS, multi_S, multi_Sz, S_val=S_val, Sz_val=Sz_val)
-    # else:
-    #     vals, df = gs.get_ground_state(H, VS)
     vals, vecs = linalg.eigsh(H, k=pam.Neval, which='SA')
     del H
     t3 = time.time()
     print(f"determine the eigenvalues of H time {(t3 - t2) // 60 // 60}h, {(t3 - t2) // 60 % 60}min, {(t3 - t2) % 60}s\n")
-    gs.get_ground_state(VS, vals, vecs, S_vals, Sz_vals)
-    # return vals, df
+
+    if pam.if_coupled:
+        gs.get_ground_state(VS, vals, vecs, S_vals, Sz_vals, S_val=S_val, Sz_val=Sz_val)
+    else:
+        gs.get_ground_state(VS, vals, vecs, S_vals, Sz_vals)
 
 
 def state_type_weight():
@@ -333,10 +336,6 @@ if __name__ == '__main__':
 
     VS = vs.VariationalSpace()
     d_idx, p_idx, apz_idx = ham.get_double_occ_list(VS)
-
-    # if Sz == 'All_Sz' and pam.if_coupled == 1:
-    #     U_coupled, S_val, Sz_val = basis_change.create_coupled_representation_matrix(VS)
-    #     U_coupled_d = (U_coupled.conjugate()).transpose()
 
     compute_Aw_main()
     # state_type_weight()
