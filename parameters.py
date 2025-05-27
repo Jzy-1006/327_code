@@ -5,8 +5,8 @@ hole_num = 5
 layer_num = 2   # 两层时, 最大能量可以设置为最高值
 energy_range = (0, 100)     # 限制能量范围
 # Sz = 'All_Sz'时, 考虑的所有自旋的情况
-Sz_list = ['All_Sz']
-# Sz_list = [0]
+# Sz_list = ['All_Sz']
+Sz_list = [1/2]
 if_coupled = 0
 if_basis_change_type = 'd_double'
 
@@ -35,8 +35,8 @@ tpd_list = (1.38, 1.43, 1.46, 1.52, 1.58)
 tpp_list = (0.537, 0.548, 0.554, 0.566, 0.562)
 tdo_list = (1.48, 1.53, 1.55, 1.61, 1.66)
 tpo_list = (0.445, 0.458, 0.468, 0.484, 0.487)
-tz_a1a1 = 0.028
-tz_b1b1 = 0.047
+tz_a1a1 = 0.0
+tz_b1b1 = 0.0
 
 if_tz_exist = 2
 if_bond = 0

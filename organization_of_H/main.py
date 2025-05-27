@@ -15,9 +15,9 @@ import lattice as lat
 
 
 def compute_Aw_main(A=pam.A, Uoo=pam.Uoo, Upp=pam.Upp,
-                    ed=pam.ed_list[0], ep=pam.ep_list[0], eo=pam.eo_list[0],
-                    tpd=pam.tpd_list[0], tpp=pam.tpp_list[0],
-                    tdo=pam.tdo_list[0], tpo=pam.tpo_list[0]):
+                    ed=pam.eds['high'], ep=pam.eps['high'], eo=pam.eos['high'],
+                    tpd=pam.tpds['high'], tpp=pam.tpps['high'],
+                    tdo=pam.tdos['high'], tpo=pam.tpos['high']):
     """
     计算一层Ni2O9的主程序
     :param A:
@@ -33,53 +33,70 @@ def compute_Aw_main(A=pam.A, Uoo=pam.Uoo, Upp=pam.Upp,
     :return:
     """
     t1 = time.time()
-    # 生成Tpd和Tpp矩阵
+
     tpd_nn_hop_dir, tpd_nn_hop_fac, tpp_nn_hop_dir, tpp_nn_hop_fac = ham.set_tpd_tpp(tpd, tpp)
-    Tpd = ham.create_tpd_nn_matrix(VS, tpd_nn_hop_dir, tpd_nn_hop_fac)
-    Tpp = ham.create_tpp_nn_matrix(VS, tpp_nn_hop_dir, tpp_nn_hop_fac)
+    # up部分
+    # 生成Tpd和Tpp矩阵
+    Tpd_up = ham.create_tpd_nn_matrix(up_VS, tpd_nn_hop_dir, tpd_nn_hop_fac)
+    Tpp_up = ham.create_tpp_nn_matrix(up_VS, tpp_nn_hop_dir, tpp_nn_hop_fac)
     # 生成Tdo和Tpo矩阵
     tdo_nn_hop_dir, tdo_nn_hop_fac, tpo_nn_hop_dir, tpo_nn_hop_fac = ham.set_tdo_tpo(tdo, tpo)
-    Tdo = ham.create_tdo_nn_matrix(VS, tdo_nn_hop_dir, tdo_nn_hop_fac)
-    Tpo = ham.create_tpo_nn_matrix(VS, tpo_nn_hop_dir, tpo_nn_hop_fac)
+    Tdo_up = ham.create_tdo_nn_matrix(up_VS, tdo_nn_hop_dir, tdo_nn_hop_fac)
+    Tpo_up = ham.create_tpo_nn_matrix(up_VS, tpo_nn_hop_dir, tpo_nn_hop_fac)
+    # 生成Tz矩阵, 层间杂化
+    # tz_fac = ham.set_tz(if_tz_exist, tz_a1a1, tz_b1b1)
+    # Tz = ham.create_tz_matrix(VS, tz_fac)
+    # 跳跃部分
+    H0_up = Tpd_up + Tpp_up + Tdo_up + Tpo_up
+
+    # 生成dn部分的矩阵
+    # 生成Tpd和Tpp矩阵
+    Tpd_dn = ham.create_tpd_nn_matrix(dn_VS, tpd_nn_hop_dir, tpd_nn_hop_fac)
+    Tpp_dn = ham.create_tpp_nn_matrix(dn_VS, tpp_nn_hop_dir, tpp_nn_hop_fac)
+    # 生成Tdo和Tpo矩阵
+    Tdo_dn = ham.create_tdo_nn_matrix(dn_VS, tdo_nn_hop_dir, tdo_nn_hop_fac)
+    Tpo_dn = ham.create_tpo_nn_matrix(dn_VS, tpo_nn_hop_dir, tpo_nn_hop_fac)
     # 生成Tz矩阵, 层间杂化
     # tz_fac = ham.set_tz(if_tz_exist, tz_a1a1, tz_b1b1)
     # Tz = ham.create_tz_matrix(VS, tz_fac)
     # 生成Esite矩阵
-    Esite = ham.create_Esite_matrix(VS, A, ed, ep, eo)
+    Esite = ham.create_Esite_matrix(up_VS, dn_VS, A, ed, ep, eo)
     # 跳跃部分
-    H0_up = Tpd + Tpp + Tdo + Tpo
-    del Tpd, Tpp, Tdo, Tpo
-    I = sps.identity(VS.dim, format='csr')
+    H0_dn = Tpd_dn + Tpp_dn + Tdo_dn + Tpo_dn
 
-    H = sps.kron(H0_up, I) + sps.kron(I, H0_up) + Esite
-    del H0_up, Esite
+    I_up = sps.identity(up_VS.dim, format='csr')
+    I_dn = sps.identity(dn_VS.dim, format='csr')
+    H = sps.kron(I_dn, H0_up) + sps.kron(H0_dn, I_up) + Esite
+    del H0_up, H0_dn
 
     # 依次变换到不同Ni上的耦合表象
     S_vals = {}
     Sz_vals = {}
     Ni_num = len(lat.Ni_position)
     for i in range(Ni_num):
-        di_idx = {key[1:]: item for key, item in d_idx.items() if key[0] == i}
-        U_Ni = basis_change.create_singlet_triplet_basis_change_matrix_d8(VS, di_idx)
+        up_di_idx = {key[1:]: item for key, item in up_d_idx.items() if key[0] == i}
+        dn_di_idx = {key[1:]: item for key, item in dn_d_idx.items() if key[0] == i}
+        U_Ni = basis_change.create_singlet_triplet_basis_change_matrix_d8(up_VS, up_di_idx, dn_VS, dn_di_idx)
         H = U_Ni @ H @ U_Ni.T
-        Hint, S_val, Sz_val = ham.create_interaction_matrix_d8(VS, di_idx, A)
+        Hint, S_val, Sz_val = ham.create_interaction_matrix_d8(up_VS, dn_VS, up_di_idx, dn_di_idx, A)
+
         H = H + Hint
         S_vals[i] = S_val
         Sz_vals[i] = Sz_val
     del U_Ni, Hint, S_val, Sz_val
 
-    Hint_po = ham.create_interaction_matrix_po(VS, p_idx, apz_idx, Upp, Uoo)
-    print()
+    Hint_po = ham.create_interaction_matrix_po(up_VS, dn_VS, up_p_idx, dn_p_idx, up_apz_idx, dn_apz_idx, Upp, Uoo, Sz)
     H = H + Hint_po
     del Hint_po
 
     # 变换到耦合表象
     if pam.if_coupled:
         for i in range(Ni_num):
-            di_idx = {key[1:]: item for key, item in d_idx.items() if key[0] == i}
-            U_Ni = basis_change.create_singlet_triplet_basis_change_matrix_d8(VS, di_idx)
+            up_di_idx = {key[1:]: item for key, item in up_d_idx.items() if key[0] == i}
+            dn_di_idx = {key[1:]: item for key, item in dn_d_idx.items() if key[0] == i}
+            U_Ni = basis_change.create_singlet_triplet_basis_change_matrix_d8(up_VS, up_di_idx, dn_VS, dn_di_idx)
             H = U_Ni.T @ H @ U_Ni
-        U_coupled, S_val, Sz_val = basis_change.create_coupled_representation_matrix(VS)
+        U_coupled, S_val, Sz_val = basis_change.create_coupled_representation_matrix(up_VS, dn_VS)
         H = U_coupled @ H @ U_coupled.T
 
     t2 = time.time()
@@ -92,9 +109,9 @@ def compute_Aw_main(A=pam.A, Uoo=pam.Uoo, Upp=pam.Upp,
     print(f"determine the eigenvalues of H time {(t3 - t2) // 60 // 60}h, {(t3 - t2) // 60 % 60}min, {(t3 - t2) % 60}s\n")
 
     if pam.if_coupled:
-        gs.get_ground_state(VS, vals, vecs, S_vals, Sz_vals, S_val=S_val, Sz_val=Sz_val)
+        gs.get_ground_state(up_VS, dn_VS, vals, vecs, S_vals, Sz_vals, S_val=S_val, Sz_val=Sz_val)
     else:
-        gs.get_ground_state(VS, vals, vecs, S_vals, Sz_vals)
+        gs.get_ground_state(up_VS, dn_VS, vals, vecs, S_vals, Sz_vals)
 
 
 def state_type_weight():
@@ -333,9 +350,17 @@ if __name__ == '__main__':
     # tz_b1b1 = pam.tz_b1b1
     # if_tz_exist = pam.if_tz_exist
     Sz = pam.Sz_list[0]
+    up_n = (pam.hole_num + 2 * Sz) // 2
+    up_n = int(up_n)
+    dn_n = (pam.hole_num - 2 * Sz) // 2
+    dn_n = int(dn_n)
 
-    VS = vs.VariationalSpace()
-    d_idx, p_idx, apz_idx = ham.get_double_occ_list(VS)
+    up_VS = vs.VariationalSpace(up_n)
+    dn_VS = vs.VariationalSpace(dn_n)
+    print(f"hole_num = {pam.hole_num}, Sz = {Sz}, up_VS.dim = {up_VS.dim}, dn_VS.dim = {dn_VS.dim}, VS.dim = {up_VS.dim * dn_VS.dim}")
+    up_d_idx, up_p_idx, up_apz_idx = ham.get_double_occ_list(up_VS)
+    dn_d_idx, dn_p_idx, dn_apz_idx = ham.get_double_occ_list(dn_VS)
+    print()
 
     compute_Aw_main()
     # state_type_weight()

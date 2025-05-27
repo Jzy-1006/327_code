@@ -7,38 +7,36 @@ import variational_space as vs
 import lattice as lat
 
 
-def get_state(istate, VS):
+def get_state(istate, up_VS, dn_VS):
     """
     get state from istate
     :param istate: index of VS
-    :param VS: space of state
+    :param up_VS: space of up state
+    :param dn_VS: space of dn state
     :return:
     """
-    dim = VS.dim
-    iup = istate // dim
-    idn = istate % dim
-    state_up = vs.get_state(VS.lookup_tbl[iup])
+    iup = istate % up_VS.dim
+    idn = istate // up_VS.dim
+    state_up = vs.get_state(up_VS.lookup_tbl[iup])
     state_up = [(x, y, z, orb, 'up') for x, y, z, orb in state_up]
-    state_dn = vs.get_state(VS.lookup_tbl[idn])
+    state_dn = vs.get_state(dn_VS.lookup_tbl[idn])
     state_dn = [(x, y, z, orb, 'dn') for x, y, z, orb in state_dn]
     state = tuple(state_up + state_dn)
 
     return state
 
 
-def get_position_orb_uid(istate, VS):
+def get_position_orb_uid(istate, up_VS, dn_VS):
     """
     得到将位置轨道进行排序后的uid
     :param istate:
-    :param VS:
+    :param up_VS:
+    :param dn_VS:
     :return:
     """
-    dim = VS.dim
-    iup = istate // dim
-    idn = istate % dim
-    uid_up, uid_dn = VS.lookup_tbl[iup], VS.lookup_tbl[idn]
-    if uid_up == uid_dn:
-        return None
+    iup = istate % up_VS.dim
+    idn = istate // up_VS.dim
+    uid_up, uid_dn = up_VS.lookup_tbl[iup], dn_VS.lookup_tbl[idn]
     b_hole = len(lat.position) * pam.Norb
 
     uids = []
@@ -58,6 +56,8 @@ def get_position_orb_uid(istate, VS):
         else:
             single.append(uid)
 
+    if len(single) < 2:
+        return None
     double.sort()
     single.sort()
     double_uid = 0
@@ -70,10 +70,11 @@ def get_position_orb_uid(istate, VS):
     return double_uid, single_uid
 
 
-def get_ground_state(VS, vals, vecs, S_vals, Sz_vals, **kwargs):
+def get_ground_state(up_VS, dn_VS, vals, vecs, S_vals, Sz_vals, **kwargs):
     """
     求解矩阵的本征值和本征向量, 并对求解结果进行整理
-    :param VS: 态空间
+    :param up_VS: 自旋向上的所有态
+    :param dn_VS: 自旋向下的所有态
     :param vals: 能谱
     :param vecs: 本征向量构成的矩阵
     :param S_vals:
@@ -105,7 +106,7 @@ def get_ground_state(VS, vals, vecs, S_vals, Sz_vals, **kwargs):
         dL_orb_i = defaultdict(lambda: defaultdict(list))
         for istate in ilead:
             weight = weight_average[istate]
-            state = get_state(istate, VS)
+            state = get_state(istate, up_VS, dn_VS)
             state_type = lat.get_state_type(state)
             orb_type = lat.get_orb_type(state)
 
@@ -131,11 +132,11 @@ def get_ground_state(VS, vals, vecs, S_vals, Sz_vals, **kwargs):
                 for istate in istates:
                     # 只对dL_weight > 0.05的态进行耦合变换
                     if pam.if_save_coupled_uid and i == 0 and dL_weight > 0.05:
-                        uid = get_position_orb_uid(istate, VS)
+                        uid = get_position_orb_uid(istate, up_VS, dn_VS)
                         if uid is not None:
                             coupled_uid.add(uid)
 
-                    state = get_state(istate, VS)
+                    state = get_state(istate, up_VS, dn_VS)
                     weight = weight_average[istate]
 
                     # 将态转为字符串
@@ -164,8 +165,9 @@ def get_ground_state(VS, vals, vecs, S_vals, Sz_vals, **kwargs):
                     # 打印输出
                     print(f"\t{state_string}\n\t{other_string}\n\tweight = {weight}\n")
 
-    with open("coupled_uid", 'w') as file:
-        for double_uid, single_uid in coupled_uid:
-            file.write(f"{double_uid}, {single_uid}\n")
+    if pam.if_save_coupled_uid:
+        with open("coupled_uid", 'w') as file:
+            for double_uid, single_uid in coupled_uid:
+                file.write(f"{double_uid}, {single_uid}\n")
     t1 = time.time()
     print(f'gs time {(t1-t0)//60//60}h, {(t1-t0)//60%60}min, {(t1-t0)%60}s\n')

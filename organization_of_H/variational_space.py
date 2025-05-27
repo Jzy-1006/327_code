@@ -83,6 +83,10 @@ def get_state(uid):
 
     # 将大数uid按照b_hole进制, 提取每个进制上的数
     state = []
+    if uid == 0:
+        # 特判，返回至少一个 hole
+        state.append(get_hole(0))
+        return tuple(state)
     while uid:
         hole_uid = uid % b_hole
         hole = get_hole(hole_uid)
@@ -129,10 +133,11 @@ def make_state_canonical(state):
 
 
 class VariationalSpace:
-    def __init__(self):
+    def __init__(self, n):
+        # n为up_num or dn_num
+        self.n = n
         self.lookup_tbl = self.create_lookup_tbl()
         self.dim = len(self.lookup_tbl)
-        print(f'VS_up.dim = {self.dim}, VS.dim = {self.dim ** 2}')
 
     def create_lookup_tbl(self):
         """
@@ -140,7 +145,6 @@ class VariationalSpace:
         :return: lookup_tbl
         """
         t0 = time.time()
-        hole_num = pam.hole_num
         position = lat.position
         hole_uids = []
         for x, y, z in position:
@@ -152,7 +156,7 @@ class VariationalSpace:
         hole_uids.sort()
         lookup_tbl = []
         b_hole = len(lat.position) * pam.Norb
-        for hole_uid_tuple in combinations(hole_uids, hole_num):
+        for hole_uid_tuple in combinations(hole_uids, self.n):
             state_uid = 0
             for idx, hole_uid in enumerate(hole_uid_tuple):
                 state_uid += hole_uid * (b_hole ** idx)

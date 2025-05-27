@@ -77,11 +77,13 @@ def set_singlet_triplet_matrix_element(VS, state_idx, hole_idx1, hole_idx2,
             Sz_double_val[partner_idx] = 0
 
 
-def create_singlet_triplet_basis_change_matrix_d8(VS, d_idx):
+def create_singlet_triplet_basis_change_matrix_d8(up_VS, up_d_idx, dn_VS, dn_d_idx):
     """
     对d8的单态三重态变换矩阵
-    :param VS:
-    :param d_idx:{}
+    :param up_VS:
+    :param up_d_idx:
+    :param dn_VS
+    :param dn_d_idx:
     :return:
     """
     # 整体框架
@@ -89,9 +91,10 @@ def create_singlet_triplet_basis_change_matrix_d8(VS, d_idx):
     # 2.生成非对角部分
     # 3.非1对角元的修正
     t0 = time.time()
-    dim = VS.dim
+    dim_up = up_VS.dim
+    dim_dn = dn_VS.dim
     # 1.单位矩阵
-    out_diag = sps.eye(dim*dim, format='coo')
+    out_diag = sps.eye(dim_up*dim_dn, format='coo')
     # 2.非1对角元
     diag_i = []
     diag_val= []
@@ -100,24 +103,24 @@ def create_singlet_triplet_basis_change_matrix_d8(VS, d_idx):
     off_j = []
     off_val = []
     # 存储非1对角元, 非对角项
-    ph = -1
-    for i1_idx, i in enumerate(d_idx[(1, 0)]):
-        i1 = d_idx[(0, 1)][i1_idx]
-        for j1_idx, j in enumerate(d_idx[(0, 1)]):
-            j1 = d_idx[(1, 0)][j1_idx]
-            k_updn = i * dim + j
-            k_dnup = i1 * dim + j1
+    for i1_idx, i in enumerate(up_d_idx[(1, 0)]):
+        i1 = up_d_idx[(0, 1)][i1_idx]
+        for j1_idx, j in enumerate(dn_d_idx[(0, 1)]):
+            j1 = dn_d_idx[(1, 0)][j1_idx]
+            #下×上+上
+            k_updn = j * dim_up + i
+            k_dnup = j1 * dim_up + i1
 
             # 1/sqrt(2)(|up, dn> + |dn, up>), U @ H0 @ U.T
             diag_val.append(1/np.sqrt(2))
             diag_i.append(k_updn)
 
-            off_val.append(ph/np.sqrt(2))
+            off_val.append(1/np.sqrt(2))
             off_i.append(k_updn)
             off_j.append(k_dnup)
 
             # 1/sqrt(2)(-|dn, up> + |up, dn>)
-            diag_val.append(-ph/np.sqrt(2))
+            diag_val.append(-1/np.sqrt(2))
             diag_i.append(k_dnup)
 
             off_val.append(1/np.sqrt(2))
@@ -125,9 +128,9 @@ def create_singlet_triplet_basis_change_matrix_d8(VS, d_idx):
             off_j.append(k_updn)
 
     # 非1对角修正
-    out_diag_correction = sps.coo_matrix((np.array(diag_val)-1., (diag_i, diag_i)), shape=(dim*dim, dim*dim))
+    out_diag_correction = sps.coo_matrix((np.array(diag_val)-1., (diag_i, diag_i)), shape=(dim_dn*dim_up, dim_dn*dim_up))
     # 非对角项
-    out_offdiag = sps.coo_matrix((off_val, (off_i, off_j)), shape=(dim*dim, dim*dim))
+    out_offdiag = sps.coo_matrix((off_val, (off_i, off_j)), shape=(dim_dn*dim_up, dim_dn*dim_up))
     t1 = time.time()
     out = out_diag + out_diag_correction + out_offdiag
     print(f'singlet_triplet_double basis change time {(t1 - t0) // 60 // 60}h, {(t1 - t0) // 60 % 60}min, {(t1 - t0) % 60}s')
@@ -330,10 +333,11 @@ def coupling_representation(j1_list, j2_list, j1m1_list, j2m2_list, expand1_list
     return cou_j_list, jm_list, expand_list
 
 
-def create_coupled_representation_matrix(VS):
+def create_coupled_representation_matrix(up_VS, dn_VS):
     """
     Construct the transformation matrix to the coupled representation.
-    :param VS:all state
+    :param up_VS: all up state
+    :param dn_VS: all dn state
     :return:sps.coc_matrix, 变换矩阵; S_val, 总自旋; Sz_val, 总自旋的z分量
     """
     t0 = time.time()
@@ -343,10 +347,11 @@ def create_coupled_representation_matrix(VS):
     j1m1_list = [(half, -half), (half, half)]
     expand1_list = [{(-half,): 1}, {(half,): 1}]
 
-    dim = VS.dim
-    row = list(range(dim*dim))
-    col = list(range(dim*dim))
-    data = [1.0] * (dim * dim)
+    Sz = pam.Sz_list[0]
+    dim = dn_VS.dim * up_VS.dim
+    row = list(range(dim))
+    col = list(range(dim))
+    data = [1.0] * dim
     S_val = {}
     Sz_val = {}
 
@@ -355,7 +360,7 @@ def create_coupled_representation_matrix(VS):
     coupled_istate = defaultdict(list)
     with open("coupled_uid", 'r') as file:
         for line in file:
-            # double, single分别表示在同一个空穴上的数目是2, 1
+            # double, single分别表示在同一个轨道的空穴数目是2, 1
             double_uid, single_uid = line.split(',')
             double_uid = int(double_uid.strip())
             single_uid = int(single_uid.strip())
@@ -373,12 +378,14 @@ def create_coupled_representation_matrix(VS):
 
             # 单占据的个数
             single_num = len(single_hole_uids)
+            up_n = (single_num + 2 * Sz) // 2
+            up_n = int(up_n)
             # 选定一个标准的位置轨道顺序
             canonical_pos_orb_uids = sorted(single_hole_uids)
 
             # 由标准的位置轨道顺序, 找到其他所有可能组合, 存储为coupled_group = {自旋朝向的分布ss: 态索引istate}
             coupled_group = {}
-            for single_up_uids in combinations(canonical_pos_orb_uids, int(single_num/2)):
+            for single_up_uids in combinations(canonical_pos_orb_uids, up_n):
                 up_uids = set(single_up_uids) | double_hole_uids
                 dn_uids = single_hole_uids - set(single_up_uids) | double_hole_uids
                 up_uids = list(up_uids)
@@ -393,9 +400,9 @@ def create_coupled_representation_matrix(VS):
                 for idx, hole_uid in enumerate(dn_uids):
                     dn_uid += hole_uid * (b_hole ** idx)
                 # 根据VS中态的查询列表lookup_tbl, 找到对应的索引
-                iup = bisect_left(VS.lookup_tbl, up_uid)
-                idn = bisect_left(VS.lookup_tbl, dn_uid)
-                istate = iup * dim + idn
+                iup = bisect_left(up_VS.lookup_tbl, up_uid)
+                idn = bisect_left(dn_VS.lookup_tbl, dn_uid)
+                istate = idn * up_VS.dim + iup
 
                 # 自旋朝向分布
                 ss = []
@@ -425,7 +432,7 @@ def create_coupled_representation_matrix(VS):
             j_list, jm_list, expand_list = coupling_representation(j_list, j1_list, jm_list, j1m1_list,
                                                                        expand_list, expand1_list)
         # 调整展开式的顺序, 按照m, j升序排列
-        jm_idx = [i for i in range(len(jm_list)) if float(jm_list[i][1]) == 0]
+        jm_idx = [i for i in range(len(jm_list)) if float(jm_list[i][1]) == Sz]
         jm_list = [jm_list[i] for i in jm_idx]
         expand_list = [expand_list[i] for i in jm_idx]
 
@@ -451,7 +458,7 @@ def create_coupled_representation_matrix(VS):
                     col.append(col_idx)
                     data.append(ph*coef)
 
-    out = sps.coo_matrix((data, (row, col)), shape=(dim*dim, dim*dim))
+    out = sps.coo_matrix((data, (row, col)), shape=(dim, dim))
     t1 = time.time()
     print(f'coupled representation time {(t1-t0)//60//60}h, {(t1-t0)//60%60}min, {(t1-t0)%60}s\n')
 
