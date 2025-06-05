@@ -356,7 +356,7 @@ def create_coupled_representation_matrix(up_VS, dn_VS):
     Sz_val = {}
 
     # 1. 读取coupled_uid文件中需要耦合变换的uid
-    b_hole = len(lat.position) * pam.Norb
+    b_hole = (len(lat.position) + 1) * pam.Norb
     coupled_istate = defaultdict(list)
     with open("coupled_uid", 'r') as file:
         for line in file:

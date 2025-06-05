@@ -17,8 +17,8 @@ def get_hole_uid(hole):
     position = lat.position
     b_orb = pam.Norb
 
-    # 将position, orb依次转为数字
-    i_position = position.index((x, y, z))
+    # 将position, orb依次转为数字, 这里+1是为了防止hole_uid出现0的情况
+    i_position = position.index((x, y, z)) + 1
     # 轨道和自旋转为数字
     i_orb = lat.orb_int[orb]
 
@@ -43,7 +43,7 @@ def get_hole(hole_uid):
     # 依次提取i_orb, i_position
     i_orb = hole_uid % b_orb
     hole_uid //= b_orb
-    i_position = hole_uid
+    i_position = hole_uid - 1
 
     # 将这些数转为对应的空穴信息 hole = (x, y, z, orb)
     x, y, z = position[i_position]
@@ -60,7 +60,7 @@ def get_state_uid(state):
     :return: uid, 态对应的数字
     """
     # 计算存储一个空穴信息需要多大的进制, 并记录在b_hole
-    b_hole = len(lat.position) * pam.Norb
+    b_hole = (len(lat.position) + 1) * pam.Norb
 
     # 将每个空穴数字, 按b_hole进制转成一个大数
     uid = 0
@@ -79,14 +79,10 @@ def get_state(uid):
     :return: state = (hole1, hole2, ....)
     """
     # 计算存储一个空穴信息需要多大的进制, 并记录在b_hole
-    b_hole = len(lat.position) * pam.Norb
+    b_hole = (len(lat.position) + 1) * pam.Norb
 
     # 将大数uid按照b_hole进制, 提取每个进制上的数
     state = []
-    if uid == 0:
-        # 特判，返回至少一个 hole
-        state.append(get_hole(0))
-        return tuple(state)
     while uid:
         hole_uid = uid % b_hole
         hole = get_hole(hole_uid)
@@ -155,7 +151,7 @@ class VariationalSpace:
 
         hole_uids.sort()
         lookup_tbl = []
-        b_hole = len(lat.position) * pam.Norb
+        b_hole = (len(lat.position) + 1) * pam.Norb
         for hole_uid_tuple in combinations(hole_uids, self.n):
             state_uid = 0
             for idx, hole_uid in enumerate(hole_uid_tuple):

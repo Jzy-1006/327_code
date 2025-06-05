@@ -15,14 +15,25 @@ def get_state(istate, up_VS, dn_VS):
     :param dn_VS: space of dn state
     :return:
     """
-    iup = istate % up_VS.dim
-    idn = istate // up_VS.dim
-    state_up = vs.get_state(up_VS.lookup_tbl[iup])
-    state_up = [(x, y, z, orb, 'up') for x, y, z, orb in state_up]
-    state_dn = vs.get_state(dn_VS.lookup_tbl[idn])
-    state_dn = [(x, y, z, orb, 'dn') for x, y, z, orb in state_dn]
-    state = tuple(state_up + state_dn)
-
+    if up_VS is None and dn_VS is None:
+        print('up_n and dn_n are not all 0')
+        state = None
+    elif up_VS is not None and dn_VS is None:
+        state = vs.get_state(up_VS.lookup_tbl[istate])
+        state = [(x, y, z, orb, 'up') for x, y, z, orb in state]
+        state = tuple(state)
+    elif up_VS is None and dn_VS is not None:
+        state = vs.get_state(dn_VS.lookup_tbl[istate])
+        state = [(x, y, z, orb, 'dn') for x, y, z, orb in state]
+        state = tuple(state)
+    else:
+        iup = istate % up_VS.dim
+        idn = istate // up_VS.dim
+        state_up = vs.get_state(up_VS.lookup_tbl[iup])
+        state_up = [(x, y, z, orb, 'up') for x, y, z, orb in state_up]
+        state_dn = vs.get_state(dn_VS.lookup_tbl[idn])
+        state_dn = [(x, y, z, orb, 'dn') for x, y, z, orb in state_dn]
+        state = tuple(state_up + state_dn)
     return state
 
 
@@ -37,7 +48,7 @@ def get_position_orb_uid(istate, up_VS, dn_VS):
     iup = istate % up_VS.dim
     idn = istate // up_VS.dim
     uid_up, uid_dn = up_VS.lookup_tbl[iup], dn_VS.lookup_tbl[idn]
-    b_hole = len(lat.position) * pam.Norb
+    b_hole = (len(lat.position) + 1) * pam.Norb
 
     uids = []
     while uid_up:
@@ -171,3 +182,5 @@ def get_ground_state(up_VS, dn_VS, vals, vecs, S_vals, Sz_vals, **kwargs):
                 file.write(f"{double_uid}, {single_uid}\n")
     t1 = time.time()
     print(f'gs time {(t1-t0)//60//60}h, {(t1-t0)//60%60}min, {(t1-t0)%60}s\n')
+
+    return dL_weights, dL_orb_weights

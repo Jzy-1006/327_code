@@ -2,7 +2,6 @@ import time
 from scipy.special import comb
 import numpy as np
 import scipy.sparse as sps
-from itertools import product
 import parameters as pam
 import lattice as lat
 import variational_space as vs
@@ -395,7 +394,7 @@ def create_tpo_nn_matrix(VS, tpo_nn_hop_dir, tpo_nn_hop_fac):
 
 def create_Esite_matrix(up_VS, dn_VS, A, ed, ep, eo):
     """
-    创建Onsite_energy哈密顿矩阵, 并计算dn, 能量设为A + abs(n - 8) * A / 2
+    创建Onsite_energy哈密顿矩阵, 并计算d_num, 能量设为A + abs(n - 8) * A / 2
     :param up_VS:
     :param dn_VS:
     :param A:
@@ -404,85 +403,78 @@ def create_Esite_matrix(up_VS, dn_VS, A, ed, ep, eo):
     :param eo:
     :return:
     """
+    def get_onsite_and_Ni_num(VS):
+        """
+        得到onsite_energy和每个态在Ni1, Ni2, Ni3, ...上的空穴数目
+        :param VS:
+        :return:
+        """
+        dim = VS.dim
+        onsite = []
+        state_Ni_num = []
+
+        # diag_Ni_num表示的是在Ni上的数目
+        for row_idx in range(dim):
+            state = vs.get_state(VS.lookup_tbl[row_idx])
+            Ni_num = {position: 0 for position in lat.Ni_position}
+            diag_el = 0
+            for x, y, z, orb in state:
+                # 计算d, p, apz轨道上的在位能
+                if orb in pam.Ni_orbs:
+                    layer_idx = z // 2
+                    diag_el += ed[layer_idx][orb]
+                elif orb in pam.O_orbs:
+                    layer_idx = z // 2
+                    diag_el += ep[layer_idx]
+                elif orb in pam.Oap_orbs:
+                    layer_idx = (z - 1) // 2
+                    diag_el += eo[layer_idx]
+
+                # 统计在相同Ni上的个数
+                if orb in pam.Ni_orbs:
+                    Ni_num[(x, y, z)] += 1
+
+            onsite.append(diag_el)
+
+            # dn(n != 8)的能量, 比d8高A/2 * abs(n - 8)
+            for position in lat.Ni_position:
+                state_Ni_num.append(Ni_num[position])
+
+        onsite = np.array(onsite)
+        state_Ni_num = np.array(state_Ni_num)
+        state_Ni_num = state_Ni_num.reshape(-1, len(lat.Ni_position))
+
+        return onsite, state_Ni_num
+
     t0 = time.time()
-    up_dim = up_VS.dim
-    dn_dim = dn_VS.dim
-    up_diag_onsite = []
-    up_diag_dNin = []
-    # up_diag_dNin表示的是向上自旋在Ni上的数目
-    for row_idx in range(up_dim):
-        state = vs.get_state(up_VS.lookup_tbl[row_idx])
-        Ni_num = {position: 0 for position in lat.Ni_position}
-        diag_el = 0
-        for x, y, z, orb in state:
-            # 计算d, p, apz轨道上的在位能
-            if orb in pam.Ni_orbs:
-                layer_idx = z // 2
-                diag_el += ed[layer_idx][orb]
-            elif orb in pam.O_orbs:
-                layer_idx = z // 2
-                diag_el += ep[layer_idx]
-            elif orb in pam.Oap_orbs:
-                layer_idx = (z - 1) // 2
-                diag_el += eo[layer_idx]
+    # 创建对角矩阵
+    if up_VS is None and dn_VS is None:
+        print("please set up_VS or dn_VS")
+    elif up_VS is not None and dn_VS is None:
+        up_onsite, up_state_Ni_num = get_onsite_and_Ni_num(up_VS)
+        d_num_energy = (up_state_Ni_num !=2 ) * A + abs(up_state_Ni_num - 2) * A / 2
+        d_num_energy = d_num_energy.sum(axis=1)
+        out = sps.diags(up_onsite + d_num_energy, format='csr')
+    elif up_VS is None and dn_VS is not None:
+        dn_onsite, dn_state_Ni_num = get_onsite_and_Ni_num(dn_VS)
+        d_num_energy = (dn_state_Ni_num != 2) * A + abs(dn_state_Ni_num - 2) * A / 2
+        d_num_energy = d_num_energy.sum(axis=1)
+        out = sps.diags(dn_onsite + d_num_energy, format='csr')
+    else:
+        up_I = np.ones(up_VS.dim)
+        up_onsite, up_state_Ni_num = get_onsite_and_Ni_num(up_VS)
+        dn_I = np.ones(dn_VS.dim)
+        dn_onste, dn_state_Ni_num =get_onsite_and_Ni_num(dn_VS)
+        onsite = np.kron(dn_I, up_onsite) + np.kron(dn_onste, up_I)
 
-            # 统计在相同Ni上的个数
-            if orb in pam.Ni_orbs:
-                Ni_num[(x, y, z)] += 1
+        up_I = np.ones((up_VS.dim, 1))
+        dn_I = np.ones((dn_VS.dim, 1))
+        state_Ni_num = np.kron(dn_I, up_state_Ni_num) + np.kron(dn_state_Ni_num, up_I)
+        d_num_energy = (state_Ni_num != 2) * A + abs(state_Ni_num - 2) * A / 2
+        d_num_energy = d_num_energy.sum(axis=1)
 
-        up_diag_onsite.append(diag_el)
+        out = sps.diags(onsite + d_num_energy, format='csr')
 
-        # dn(n != 8)的能量, 比d8高A/2 * abs(n - 8)
-        for position in lat.Ni_position:
-            up_diag_dNin.append(Ni_num[position])
-
-    dn_diag_onsite = []
-    dn_diag_dNin = []
-    # dn_diag_dNin表示的是向下自旋在Ni上的数目
-    for row_idx in range(dn_dim):
-        state = vs.get_state(dn_VS.lookup_tbl[row_idx])
-        Ni_num = {position: 0 for position in lat.Ni_position}
-        diag_el = 0
-        for x, y, z, orb in state:
-            # 计算d, p, apz轨道上的在位能
-            if orb in pam.Ni_orbs:
-                layer_idx = z // 2
-                diag_el += ed[layer_idx][orb]
-            elif orb in pam.O_orbs:
-                layer_idx = z // 2
-                diag_el += ep[layer_idx]
-            elif orb in pam.Oap_orbs:
-                layer_idx = (z - 1) // 2
-                diag_el += eo[layer_idx]
-
-            # 统计在相同Ni上的个数
-            if orb in pam.Ni_orbs:
-                Ni_num[(x, y, z)] += 1
-
-        dn_diag_onsite.append(diag_el)
-
-        # Nin(n != 8)的能量, 比d8高A/2 * abs(n - 8)
-        for position in lat.Ni_position:
-            dn_diag_dNin.append(Ni_num[position])
-    # 创建
-    up_diag_onsite = np.array(up_diag_onsite)
-    dn_diag_onsite = np.array(dn_diag_onsite)
-    up_I = np.ones(up_dim)
-    dn_I = np.ones(dn_dim)
-    diag_onsite = np.kron(dn_I, up_diag_onsite) + np.kron(dn_diag_onsite, up_I)
-
-    up_diag_dNin = np.array(up_diag_dNin)
-    up_diag_dNin = up_diag_dNin.reshape(-1, len(lat.Ni_position))
-    dn_diag_dNin = np.array(dn_diag_dNin)
-    dn_diag_dNin = dn_diag_dNin.reshape(-1, len(lat.Ni_position))
-    up_I = np.ones((up_dim, 1))
-    dn_I = np.ones((dn_dim, 1))
-
-    diag_dNin = np.kron(dn_I, up_diag_dNin) + np.kron(dn_diag_dNin, up_I)
-    diag_dNin = (diag_dNin != 2) * A + abs(diag_dNin - 2) * A / 2
-    diag_dNin = diag_dNin.sum(axis=1)
-
-    out = sps.diags(diag_onsite+diag_dNin, format='csr')
     t1 = time.time()
     print(f'Esite time {(t1-t0)//60//60}h {(t1-t0)//60%60}min {(t1-t0) % 60}s\n')
 
@@ -612,109 +604,143 @@ def create_interaction_matrix_d8(up_VS, dn_VS, up_di_idx, dn_di_idx, A):
     t0 = time.time()
     B = pam.B
     C = pam.C
-    up_dim = up_VS.dim
-    dn_dim = dn_VS.dim
     data = []
     row = []
     col = []
 
     S_val = {}
     Sz_val = {}
-    # 1.d8相互作用
-    # 1A1, S = 0, Sz = 0
-    for i in up_di_idx[(1, 0)]:
-        for j in dn_di_idx[(1, 0)]:
-            r = j * up_dim + i
-            data.append(A + 4 * B + 3 * C)
-            row.append(r)
-            col.append(r)
 
-            S_val[r] = 0
-            Sz_val[r] = 0
-
-    for i in up_di_idx[(0, 1)]:
-        for j in dn_di_idx[(0, 1)]:
-            r = j * up_dim + i
-            data.append(A + 4 * B + 3 * C)
-            row.append(r)
-            col.append(r)
-
-            S_val[r] = 0
-            Sz_val[r] = 0
-
-    for i1_idx, i in enumerate(up_di_idx[(1, 0)]):
-        i1 = up_di_idx[(0, 1)][i1_idx]
-        for j1_idx, j in enumerate(dn_di_idx[(1, 0)]):
-            j1 = dn_di_idx[(0, 1)][j1_idx]
-            r1 = j * up_dim + i
-            r2 = j1 * up_dim + i1
-            data.extend([4 * B + C, 4 * B + C])
-            row.extend([r1, r2])
-            col.extend([r2, r1])
-
-            S_val[r1] = 0
-            Sz_val[r1] = 0
-            S_val[r2] = 0
-            Sz_val[r2] = 0
-
-    # 1B1和3B1, S=1, Sz=0
-    for i in up_di_idx[(1, 0)]:
-        for j in dn_di_idx[(0, 1)]:
-            # 1B1, S = 0, Sz = 0
-            r = j * up_dim + i
-            data.append(A+2*C)
-            row.append(r)
-            col.append(r)
-
-            S_val[r] = 0
-            Sz_val[r] = 0
-    # 3B1
-    for i in up_di_idx[(0, 1)]:
-        for j in dn_di_idx[(1, 0)]:
-            # 3B1, S=1, Sz=0
-            r = j * up_dim + i
-            data.append(A-8*B)
-            row.append(r)
-            col.append(r)
-
-            S_val[r] = 1
-            Sz_val[r] = 0
-
-    # 3B1, Sz=1, Sz=-1
-    for i in up_di_idx[(1, 1)]:
-        for j in dn_di_idx[(0, 0)]:
-            # Sz = 1
-            r = j * up_dim + i
+    if up_VS is None and dn_VS is None:
+        print("please set up_VS or dn_Vs")
+        out = None
+    elif up_VS is not None and dn_VS is None:
+        for i in up_di_idx[(1, 1)]:
+            dim = up_VS.dim
             data.append(A - 8 * B)
-            row.append(r)
-            col.append(r)
+            row.append(i)
+            col.append(i)
 
-            S_val[r] = 1
-            Sz_val[r] = 1
-    for i in up_di_idx[(0, 0)]:
-        for j in dn_di_idx[(1, 1)]:
-            # Sz = -1
-            r = j * up_dim + i
+            S_val[i] = 1
+            Sz_val[i] = 1
+
+            out = sps.csr_matrix((data, (row, col)), shape=(dim, dim))
+            out.tocsr()
+    elif up_VS is None and dn_VS is not None:
+        for i in dn_di_idx[(1, 1)]:
+            dim = dn_VS.dim
             data.append(A - 8 * B)
-            row.append(r)
-            col.append(r)
+            row.append(i)
+            col.append(i)
 
-            S_val[r] = 1
-            Sz_val[r] = -1
+            S_val[i] = 1
+            Sz_val[i] = -1
 
-    out = sps.coo_matrix((data, (row, col)), shape=(dn_dim*up_dim, dn_dim*up_dim))
+            out = sps.csr_matrix((data, (row, col)), shape=(dim, dim))
+    else:
+        up_dim = up_VS.dim
+        dn_dim = dn_VS.dim
+        # d8相互作用
+        # (1).1A1, S = 0, Sz = [0]
+        # (dz2, up, dz2, dn)和(dz2, up, dz2, dn)
+        for i in up_di_idx[(1, 0)]:
+            for j in dn_di_idx[(1, 0)]:
+                r = j * up_dim + i
+                data.append(A + 4 * B + 3 * C)
+                row.append(r)
+                col.append(r)
+
+                S_val[r] = 0
+                Sz_val[r] = 0
+        # (dx2, up, dx2, dn)和(dx2, up, dx2, dn)
+        for i in up_di_idx[(0, 1)]:
+            for j in dn_di_idx[(0, 1)]:
+                r = j * up_dim + i
+                data.append(A + 4 * B + 3 * C)
+                row.append(r)
+                col.append(r)
+
+                S_val[r] = 0
+                Sz_val[r] = 0
+        # (dz2, up, dz2, dn)和(dx2, up, dx2, dn)
+        for i1_idx, i in enumerate(up_di_idx[(1, 0)]):
+            i1 = up_di_idx[(0, 1)][i1_idx]  # 保证除dz2, dx2部分空穴不同之外, 其余相同
+            for j1_idx, j in enumerate(dn_di_idx[(1, 0)]):
+                j1 = dn_di_idx[(0, 1)][j1_idx]
+                r1 = j * up_dim + i
+                r2 = j1 * up_dim + i1
+                data.extend([4 * B + C, 4 * B + C])
+                row.extend([r1, r2])
+                col.extend([r2, r1])
+
+                S_val[r1] = 0
+                Sz_val[r1] = 0
+                S_val[r2] = 0
+                Sz_val[r2] = 0
+
+        # (2).1B1, S=0, Sz=[0]
+        # (dz2, up, dx2, dn)
+        for i in up_di_idx[(1, 0)]:
+            for j in dn_di_idx[(0, 1)]:
+                r = j * up_dim + i
+                data.append(A+2*C)
+                row.append(r)
+                col.append(r)
+
+                S_val[r] = 0
+                Sz_val[r] = 0
+
+        # (3).3B1, S=1, Sz=[-1, 0, 1]
+        # (dx2, up, dz2, dn), S=1, Sz=0
+        for i in up_di_idx[(0, 1)]:
+            for j in dn_di_idx[(1, 0)]:
+                r = j * up_dim + i
+                data.append(A-8*B)
+                row.append(r)
+                col.append(r)
+
+                S_val[r] = 1
+                Sz_val[r] = 0
+
+        # (dz2, up, dx2, up), S=1, Sz=1
+        for i in up_di_idx[(1, 1)]:
+            for j in dn_di_idx[(0, 0)]:
+                r = j * up_dim + i
+                data.append(A - 8 * B)
+                row.append(r)
+                col.append(r)
+
+                S_val[r] = 1
+                Sz_val[r] = 1
+        # (dz2, dn, dx2, dn), S=1, Sz=-1
+        for i in up_di_idx[(0, 0)]:
+            for j in dn_di_idx[(1, 1)]:
+                r = j * up_dim + i
+                data.append(A - 8 * B)
+                row.append(r)
+                col.append(r)
+
+                S_val[r] = 1
+                Sz_val[r] = -1
+
+        out = sps.csr_matrix((data, (row, col)), shape=(dn_dim*up_dim, dn_dim*up_dim))
     t1 = time.time()
     print(f'create_interaction_matrix_d8 time {(t1-t0)//60//60}h {(t1-t0)//60%60}min {(t1-t0) % 60}s')
 
-    return out.tocsr(), S_val, Sz_val
+    return out, S_val, Sz_val
 
 
-def create_interaction_matrix_po(up_VS, dn_VS, up_p_idx, dn_p_idx, up_apz_idx, dn_apz_idx, Upp, Uoo, Sz):
+def create_interaction_matrix_po(up_VS, dn_VS, up_num, dn_num, up_p_idx, dn_p_idx, up_apz_idx, dn_apz_idx, Upp, Uoo):
     """
     设置p, pz轨道的相互作用
-    :param VS:
-    :param p_idx: [(p_idx, point): state_idx, ...]
-    :param apz_idx: [(p_idx, point): state_idx, ...]
+    :param up_VS:
+    :param dn_VS:
+    :param up_num:
+    :param dn_num:
+    :param up_p_idx: [(p_idx, point): state_idx, ...]
+    :param dn_p_idx:
+    :param up_apz_idx: [(p_idx, point): state_idx, ...]
+    :param dn_apz_idx:
     :param Upp: p,p轨道的相互作用
     :param Uoo: pz, pz轨道的相互作用
     :return:
@@ -725,8 +751,6 @@ def create_interaction_matrix_po(up_VS, dn_VS, up_p_idx, dn_p_idx, up_apz_idx, d
     p_num = len(lat.O_position)
     apz_num = len(lat.Oap_position)
     orb_num = 2 * len(lat.Ni_position) + p_num + apz_num
-    up_num = (pam.hole_num + 2 * Sz) // 2
-    dn_num = (pam.hole_num - 2 * Sz) // 2
     data = []
     diag_i = []
 
