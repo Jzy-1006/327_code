@@ -4,14 +4,15 @@ import numpy as np
 hole_num = 9
 layer_num = 3
 
+pressures = ['0', '15.3']
+pressure = '15.3'
+
 Sz_list = [1/2]
 if_coupled = 0
 if_save_coupled_uid = 1
 if_basis_change_type = 'd_double'
 
 Norb = 5
-Mc = 2
-pressures = ('low', 'high')
 
 A = 6.
 As = [5., 6., 7.]
@@ -22,27 +23,26 @@ Uoo = 4.
 Upps = [4.0]
 Uoos = [4.0]
 
-# 三层数据
-eds = {'high': ({'d3z2r2': 0.102, 'dx2y2': 0.},
-                {'d3z2r2': -0.1, 'dx2y2': 0.},
-                {'d3z2r2': 0.102, 'dx2y2': 0.}),
-        'low': ({'d3z2r2': 0.170, 'dx2y2': 0.},
+# 三层数据, 索引0, 1, 2分别代表 z = 0, 2, 4
+eds = {'15.3': ({'d3z2r2': 0.116, 'dx2y2': 0.},
+                {'d3z2r2': -0.076, 'dx2y2': 0.},
+                {'d3z2r2': 0.116, 'dx2y2': 0.}),
+        '0': ({'d3z2r2': 0.170, 'dx2y2': 0.},
                 {'d3z2r2': 0.02, 'dx2y2': 0.},
                 {'d3z2r2': 0.170, 'dx2y2': 0.})}
-eps = {'high': (3.224, 3.121, 3.224),
-           'low': (3.093, 2.875, 3.093)}
-eos = {'high': (2.834, 2.834),
-           'low': (2.760, 2.760)}
+eps = {'15.3': (3.519, 3.364, 3.519),
+           '0': (3.093, 2.875, 3.093)}
+eos = {'15.3': (3.047, 3.047),
+           '0': (2.760, 2.760)}
 
-tpds = {'high': np.array([1.373, 1.377, 1.373]),
-            'low': np.array([1.187, 1.285, 1.187])}
-tpps = {'high': np.array([0.521, 0.497, 0.521]),
-            'low': np.array([0.478, 0.435, 0.478])}
-tdos = {'high': np.array([1.557, 1.502, 1.557]),
-            'low': np.array([1.266, 1.210, 1.266])}
-tpos = {'high': np.array([0.456, 0.467, 0.456]),
-            'low': np.array([0.403, 0.435, 0.403])}
-
+tpds = {'15.3': np.array([1.498, 1.503, 1.498]),
+            '0': np.array([1.187, 1.285, 1.187])}
+tpps = {'15.3': np.array([0.551, 0.525, 0.551]),
+            '0': np.array([0.478, 0.435, 0.478])}
+tdos = {'15.3': np.array([1.666, 1.625, 1.666]),
+            '0': np.array([1.266, 1.210, 1.266])}
+tpos = {'15.3': np.array([0.486, 0.489, 0.486]),
+            '0': np.array([0.403, 0.435, 0.403])}
 
 # 两层数据
 # eds = {'0': ({'d3z2r2': 0.046, 'dx2y2': 0.},
@@ -88,6 +88,11 @@ tpos = {'high': np.array([0.456, 0.467, 0.456]),
 #         '29.5': np.array([0.487, 0.487])}
 # tz_a1a1 = 0.028
 # tz_b1b1 = 0.047
+
+dL_types = ['d8-d8', 'd8-d9L', 'd8-O-d9']
+orb_types = {'d8-d8': 'dx2dz2_dx2dz2'}
+vary_tpds = np.linspace(tpds[pressure]*0.9, tpds[pressure]*1.1, num=11, endpoint=True)
+tdo_div_tpd = tdos[pressure] / tpds[pressure]
 
 if_tz_exist = 2
 if_bond = 0

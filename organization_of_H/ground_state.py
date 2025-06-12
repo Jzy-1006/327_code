@@ -107,6 +107,17 @@ def get_ground_state(up_VS, dn_VS, vals, vecs, S_vals, Sz_vals, **kwargs):
                 break
 
     coupled_uid = set()
+    if pam.if_save_coupled_uid:
+        with open("coupled_uid", 'r') as file:
+            for line in file:
+                # double_uid, single_uid分别指这个轨道有两个空穴, 单个空穴
+                if ',' in line:
+                    double_uid, single_uid = line.split(',')
+                    double_uid = int(double_uid.strip())
+                    single_uid = int(single_uid.strip())
+                    coupled_uid.add((double_uid, single_uid))
+    dL_weights0 = defaultdict(float)
+    dL_orb_weights0 = defaultdict(lambda: defaultdict(float))
     for i in range(val_num):
         print(f'Degeneracy of {i}th state is {degen_idx[i + 1] - degen_idx[i]}')
         print('val = ', vals[degen_idx[i]])
@@ -142,7 +153,8 @@ def get_ground_state(up_VS, dn_VS, vals, vecs, S_vals, Sz_vals, **kwargs):
                 istates = dL_orb_i[dL][orb_type]
                 for istate in istates:
                     # 只对dL_weight > 0.05的态进行耦合变换
-                    if pam.if_save_coupled_uid and i == 0 and dL_weight > 0.05:
+                    if pam.if_save_coupled_uid and up_VS is not None \
+                        and dn_VS is not None and dL_weight > 0.05:
                         uid = get_position_orb_uid(istate, up_VS, dn_VS)
                         if uid is not None:
                             coupled_uid.add(uid)
@@ -175,6 +187,9 @@ def get_ground_state(up_VS, dn_VS, vals, vecs, S_vals, Sz_vals, **kwargs):
 
                     # 打印输出
                     print(f"\t{state_string}\n\t{other_string}\n\tweight = {weight}\n")
+        if i == 0:
+            dL_weights0 = dL_weights
+            dL_orb_weights0 = dL_orb_weights
 
     if pam.if_save_coupled_uid:
         with open("coupled_uid", 'w') as file:
@@ -183,4 +198,4 @@ def get_ground_state(up_VS, dn_VS, vals, vecs, S_vals, Sz_vals, **kwargs):
     t1 = time.time()
     print(f'gs time {(t1-t0)//60//60}h, {(t1-t0)//60%60}min, {(t1-t0)%60}s\n')
 
-    return dL_weights, dL_orb_weights
+    return dL_weights0, dL_orb_weights0

@@ -14,9 +14,9 @@ import lattice as lat
 
 
 def compute_Aw_main(A=pam.A, Uoo=pam.Uoo, Upp=pam.Upp,
-                    ed=pam.eds['29.5'], ep=pam.eps['29.5'], eo=pam.eos['29.5'],
-                    tpd=pam.tpds['29.5'], tpp=pam.tpps['29.5'],
-                    tdo=pam.tdos['29.5'], tpo=pam.tpos['29.5']):
+                    ed=pam.eds[pam.pressure], ep=pam.eps[pam.pressure], eo=pam.eos[pam.pressure],
+                    tpd=pam.tpds[pam.pressure], tpp=pam.tpps[pam.pressure],
+                    tdo=pam.tdos[pam.pressure], tpo=pam.tpos[pam.pressure]):
     """
     计算一层Ni2O9的主程序
     :param A:
@@ -164,29 +164,18 @@ def state_type_weight():
     计算state_type_weight随参数的变化
     :return:
     """
-    DFT_tpd = pam.tpds['29.5'][0]
-    dL_types = ['d8-d7L-d8', 'd8-d8L-O-d8', 'd8-d7-O-d8', 'd8-d8L-d8L', 'd8-d7-d8L', 'd8-d8L-d7']
-    orb_types = {'d8-d8L-O-d8': 'dx2dz2_dx2dz2L_apz_dx2dz2', 'd8-d8L-d8L': 'dx2dz2_dx2dz2L_dx2dz2L'}
-    # dL_types = ['d8L-d9L', 'd8-d8L', 'd7-d8', 'd8-d9L2']
-    # orb_types = ['dx2dz2_apz_dx2dz2', 'dx2dz2_dx2dz2L']
+    dL_types = pam.dL_types
+    orb_types = pam.orb_types
     dL_weight_tpd = {key: [] for key in dL_types}
     dL_weight_tpd['tpd'] = []
-    orb_weight_tpd = {key: [] for key in orb_types}
+    orb_weight_tpd = {key: [] for key in orb_types.values()}
     orb_weight_tpd['tpd'] = []
-    for tpd in np.linspace(DFT_tpd * 0.8, DFT_tpd * 1.2, num=21, endpoint=True):
-        # 高压 tdo/tpd
-        tdo = 1.134 * tpd
-        # # 低压 tdo/tpd
-        # tdo = 0.942 * tpd
-        dL_weight_tpd['tpd'].append(tpd)
-        orb_weight_tpd['tpd'].append(tpd)
-        # 高压 内层/外层
-        _, dL_weights, dL_orb_weights = compute_Aw_main(tpd=np.array([tpd, tpd, tpd]),
-                                                        tdo=np.array([tdo, 0.965*tdo, tdo]))
-        # 低压 内层/外层
-        # _, dL_weights, dL_orb_weights = compute_Aw_main(tpd=np.array([tpd, 1.083*tpd, tpd]),
-        #                                                 tdo=np.array([tdo, 0.956*tdo, tdo]))
-
+    for tpd in pam.vary_tpds:
+        # 保持tdo/tpd的比值不变
+        tdo = tpd * pam.tdo_div_tpd
+        dL_weight_tpd['tpd'].append(tpd[0])
+        orb_weight_tpd['tpd'].append(tpd[0])
+        _, dL_weights, dL_orb_weights = compute_Aw_main(tpd=tpd, tdo=tdo)
         for dL in dL_types:
             weight = dL_weights[dL]
             dL_weight_tpd[dL].append(weight)
@@ -207,23 +196,13 @@ def get_val_tpd():
     得到同一Sz下, 不同tpd的本征值
     :return:
     """
-    tpd_DFT = pam.tpds['29.5'][0]
     val_tpd = {'tpd': [], 'val': []}
-    for tpd in np.linspace(tpd_DFT*0.8, tpd_DFT*1.2, num=21, endpoint=True):
-        # 高压 tdo/tpd
-        tdo = 1.134 * tpd
-        # # 低压 tdo/tpd
-        # tdo = 0.942 * tpd
-        
-        # 高压 内层/外层
-        vals, _, _ = compute_Aw_main(tpd=np.array([tpd, tpd, tpd]),
-                                    tdo=np.array([tdo, 0.965*tdo, tdo]))
-        # # 低压 内层/外层
-        # vals, _, _ = compute_Aw_main(tpd=np.array([tpd, 1.083*tpd, tpd]),
-        #                              tdo=np.array([tdo, 0.956*tdo, tdo]))
-        val = vals[0]
-        val_tpd['tpd'].append(tpd)
-        val_tpd['val'].append(val)
+    for tpd in pam.vary_tpds:
+        tdo = tpd * pam.tdo_div_tpd
+        vals, _, _ = compute_Aw_main(tpd=tpd, tdo=tdo)
+
+        val_tpd['tpd'].append(tpd[0])
+        val_tpd['val'].append(vals[0])
     val_tpd = pd.DataFrame(val_tpd)
     val_tpd.to_csv(f'./data/Sz={Sz}val_tpd.csv', index=False)
 
@@ -318,6 +297,8 @@ def evaluate_node(node, min_size, max_depth, global_cache, fix_var, fix_val, bin
     :param fix_val: 固定的变量值
     :param binary_var: 被二分的变量名
     """
+    tpd_inner_div_outer = pam.tpds[pam.pressure] / pam.tpds[pam.pressure][0]
+    tdo_inner_div_outer = pam.tdos[pam.pressure] / pam.tdos[pam.pressure][0]
     state_orb = []
     bounds = node.bounds
     x_min, x_max = bounds
@@ -326,12 +307,16 @@ def evaluate_node(node, min_size, max_depth, global_cache, fix_var, fix_val, bin
         if key in global_cache:
             state_orb.append(global_cache[key])
         else:
-            # 高压, 固定tdo, 二分tpd, 内层/外层
-            state_type, orb_type = get_max_type({fix_var: np.array([fix_val, 0.965*fix_val, fix_val]), binary_var: np.array([x, x, x])})
-            
-            # # 低压, 固定tdo, 二分tpd, 内层/外层
-            # state_type, orb_type = get_max_type({fix_var: np.array([fix_val, 0.956*fix_val, fix_val]), binary_var: np.array([x, 1.083*x, x])})
-
+            if fix_var == 'tdo':
+                state_type, orb_type = get_max_type({fix_var: fix_val*tdo_inner_div_outer,
+                                                     binary_var: x*tpd_inner_div_outer})
+            elif fix_var == 'tpd':
+                state_type, orb_type = get_max_type({fix_var: fix_val*tpd_inner_div_outer,
+                                                     binary_var: x*tdo_inner_div_outer})
+            else:
+                state_type = None
+                orb_type = None
+                print("please input other variable")
             state_orb.append((state_type, orb_type))
             global_cache[key] = (state_type, orb_type)
     if state_orb[0] == state_orb[1]:
@@ -421,7 +406,11 @@ if __name__ == '__main__':
     for filename in os.listdir('data'):
         file_path = os.path.join('data', filename)
         with open(file_path, 'w') as file:
-            file.truncate(0)
+            pass
+
+    if pam.if_coupled == 0 and pam.if_save_coupled_uid == 1:
+        with open("coupled_uid", 'w') as file:
+            pass
 
     # tz_a1a1 = pam.tz_a1a1
     # tz_b1b1 = pam.tz_b1b1
@@ -436,7 +425,11 @@ if __name__ == '__main__':
         assert up_n >= 0 and dn_n >=0, 'Sz is error'
         assert hole_num == (up_n + dn_n), 'Sz is error'
 
-        compute_Aw_main()
+        mid = (len(pam.vary_tpds) - 1) // 2
+        for vary_tpd in pam.vary_tpds[[0, mid, -1]]:
+            vary_tdo = vary_tpd * pam.tdo_div_tpd
+            compute_Aw_main(tpd=vary_tpd, tdo=vary_tdo)
+        # compute_Aw_main()
         # state_type_weight()
         # get_val_tpd()
         # get_val_pressure()
